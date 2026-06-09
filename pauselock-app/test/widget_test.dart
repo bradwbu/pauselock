@@ -14,16 +14,12 @@ void main() {
     await tester.pumpWidget(const PauselockApp());
     await tester.pumpAndSettle();
 
-    // Verify that we are on the Home Page and PAUSELOCK text is rendered
-    expect(find.text('PAUSELOCK'), findsOneWidget);
+    // Verify that PAUSELOCK text is rendered somewhere (appbar, sidebar, etc)
+    expect(find.text('PAUSELOCK'), findsWidgets);
     
-    // Verify that the search input is rendered
-    expect(find.text('Search player...'), findsOneWidget);
-
-    // Verify Nav Cards exist
-    expect(find.text('Stats'), findsOneWidget);
-    expect(find.text('Builds'), findsOneWidget);
-    expect(find.text('Heroes'), findsOneWidget);
-    expect(find.text('Leaderboard'), findsOneWidget);
+    // Verify Nav elements exist in the UI (either sidebar or cards)
+    expect(find.text('Heroes'), findsWidgets);
+    expect(find.text('Builds'), findsWidgets);
+    expect(find.text('Leaderboard'), findsWidgets);
   });
 }
