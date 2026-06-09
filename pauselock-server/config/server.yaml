@@ -1,0 +1,36 @@
+# Pauselock Server Configuration
+name: pauselock
+
+# Setup database connection
+database:
+  host: localhost
+  port: 3306
+  database: pauselock
+  username: pauselock_user
+  password: your_password_here
+
+# Ports
+httpPort: 8080
+httpsPort: null
+
+# Logging
+logging:
+  level: info
+  path: log
+
+# Redis (for caching)
+redis:
+  host: localhost
+  port: 6379
+
+# Authentication
+authentication:
+  jwtSecret: your_jwt_secret_key_here
+  tokenExpiry: 2592000 # 30 days
+
+# CORS
+cors:
+  allowedOrigins:
+    - http://localhost:3000
+    - http://localhost:5173
+    - https://pauselock.com

@@ -1,0 +1,130 @@
+# Serverpod protocol definition file
+# This file defines the serializable models for the Pauselock application
+
+class: PlayerStats
+fields:
+  accountId: int
+  playerName: String
+  mmr: int
+  rank: int
+  wins: int
+  losses: int
+  winRate: double
+  totalMatches: int
+  kills: int
+  deaths: int
+  assists: int
+  kda: double
+  favoriteHero: String
+  favoriteHeroId: int
+  hoursPlayed: int
+  lastPlayed: DateTime
+
+---
+
+class: HeroData
+fields:
+  id: int
+  name: String
+  fullName: String
+  description: String
+  iconUrl: String
+  bannerPortraitUrl: String
+  roles: List<String>
+  primaryAttribute: String
+  baseHealth: int
+  baseMana: int
+  baseDamageMin: int
+  baseDamageMax: int
+  baseArmor: int
+  winRate: double
+  pickRate: int
+  banRate: int
+  matchesPlayed: int
+  popularity: int
+  abilities: List<String>
+
+---
+
+class: BuildData
+fields:
+  id: int
+  heroId: int
+  heroName: String
+  buildName: String
+  author: String
+  authorAccountId: int
+  itemIds: List<String>
+  items: List<String>
+  talents: List<String>
+  description: String
+  upvotes: int
+  downvotes: int
+  winRate: double
+  matchesPlayed: int
+  createdAt: DateTime
+  isPublic: bool
+  isFeatured: bool
+  tags: List<String>
+
+---
+
+class: SavedBuild
+fields:
+  id: int
+  userId: int
+  heroId: int
+  heroName: String
+  itemIds: List<String>
+  items: List<String>
+  talentOrder: List<String>
+  notes: String
+  createdAt: DateTime
+  updatedAt: DateTime
+
+---
+
+class: UserProfile
+fields:
+  id: int
+  username: String
+  displayName: String
+  email: String
+  avatarUrl: String?
+  steamId: String?
+  steamAccountId: int?
+  createdAt: DateTime
+  lastLogin: DateTime
+  isPremium: bool
+  favoriteHeroes: List<String>
+
+---
+
+class: LeaderboardEntry
+fields:
+  rank: int
+  accountId: int
+  playerName: String
+  mmr: int
+  region: String
+  heroId: int
+  heroName: String
+
+---
+
+class: HeroFilter
+fields:
+  roles: List<String>?
+  primaryAttribute: String?
+  searchQuery: String?
+  limit: int?
+
+---
+
+class: BuildFilter
+fields:
+  heroId: int?
+  searchQuery: String?
+  sortBy: String?
+  limit: int?
+  featuredOnly: bool?

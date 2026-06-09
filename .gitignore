@@ -1,0 +1,30 @@
+# Files and directories created by dart and flutter
+.dart_tool/
+.pub/
+build/
+*.iml
+*.swp
+*.swo
+
+# Serverpod generated files
+lib/src/generated/
+
+# Environment variables
+.env
+config/*.local.yaml
+
+# Database
+*.db
+*.sqlite
+
+# IDE
+.vscode/
+.idea/
+*.DS_Store
+
+# Logs
+log/*.log
+*.log
+
+# OS
+Thumbs.db

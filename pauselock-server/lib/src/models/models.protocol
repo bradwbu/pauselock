@@ -1,0 +1,132 @@
+// Protocol file for Pauselock - Deadlock Stats API
+// This file defines the communication protocol between client and server
+
+// Player stats from Deadlock API
+class PlayerStats {
+  int accountId;
+  String playerName;
+  int mmr;
+  int rank;
+  int wins;
+  int losses;
+  double winRate;
+  int totalMatches;
+  int kills;
+  int deaths;
+  int assists;
+  double kda;
+  String favoriteHero;
+  int favoriteHeroId;
+  int hoursPlayed;
+  DateTime lastPlayed;
+}
+
+// Hero data
+class HeroData {
+  int id;
+  String name;
+  String fullName;
+  String description;
+  String iconUrl;
+  String bannerPortraitUrl;
+  List<String> roles;
+  String primaryAttribute;
+  int baseHealth;
+  int baseMana;
+  int baseDamageMin;
+  int baseDamageMax;
+  int baseArmor;
+  double winRate;
+  int pickRate;
+  int banRate;
+  int matchesPlayed;
+  int popularity;
+  List<String> abilities;
+}
+
+// Build data
+class BuildData {
+  int id;
+  int heroId;
+  String heroName;
+  String buildName;
+  String author;
+  int authorAccountId;
+  List<String> itemIds;
+  List<String> items;
+  List<String> talents;
+  String description;
+  int upvotes;
+  int downvotes;
+  double winRate;
+  int matchesPlayed;
+  DateTime createdAt;
+  bool isPublic;
+  bool isFeatured;
+  List<String> tags;
+}
+
+// Saved build for user
+class SavedBuild {
+  int id;
+  int userId;
+  int heroId;
+  String heroName;
+  List<String> itemIds;
+  List<String> items;
+  List<String> talentOrder;
+  String notes;
+  DateTime createdAt;
+  DateTime updatedAt;
+}
+
+// User profile
+class UserProfile {
+  int id;
+  String username;
+  String displayName;
+  String email;
+  String? avatarUrl;
+  String? steamId;
+  int? steamAccountId;
+  DateTime createdAt;
+  DateTime lastLogin;
+  bool isPremium;
+  List<String> favoriteHeroes;
+}
+
+// Search/filter options for querying heroes
+class HeroFilter {
+  List<String>? roles;
+  String? primaryAttribute;
+  String? searchQuery;
+  int? limit;
+}
+
+// Search filter for builds
+class BuildFilter {
+  int? heroId;
+  String? searchQuery;
+  String? sortBy; // 'winRate', 'popularity', 'recent'
+  int? limit;
+  bool? featuredOnly;
+}
+
+// Leaderboard entry
+class LeaderboardEntry {
+  int rank;
+  int accountId;
+  String playerName;
+  int mmr;
+  String region;
+  int heroId;
+  String heroName;
+}
+
+// API response wrapper
+class ApiResponse<T> {
+  bool success;
+  String message;
+  T? data;
+  List<String>? errors;
+}
