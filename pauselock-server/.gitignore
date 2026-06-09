@@ -7,7 +7,6 @@ build/
 *.swo
 
 # Serverpod generated files (if using code generation)
-lib/src/generated/
 
 # Environment variables
 .env
