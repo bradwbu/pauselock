@@ -73,7 +73,8 @@ jobs:
             source ~/.bashrc || true
 
             cd /opt/pauselock
-            git pull origin main
+            git fetch --all
+            git reset --hard origin/main
             
             # Build Backend
             cd pauselock-server
