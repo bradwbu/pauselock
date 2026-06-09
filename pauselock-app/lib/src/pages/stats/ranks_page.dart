@@ -28,10 +28,10 @@ class RanksPage extends StatelessWidget {
             decoration: BoxDecoration(
               border: Border(bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05))),
             ),
-            child: Row(
+            child: const Row(
               children: [
                 Icon(Icons.info_outline, color: AppTheme.accentColor),
-                const SizedBox(width: 16),
+                SizedBox(width: 16),
                 Expanded(
                   child: Text(
                     'Deadlock uses a hidden MMR system. These brackets represent the estimated skill tiers based on community data tracking.',
@@ -89,7 +89,7 @@ class RanksPage extends StatelessWidget {
                               const SizedBox(height: 6),
                               Row(
                                 children: [
-                                  Icon(Icons.trending_up, size: 14, color: Colors.white54),
+                                  const Icon(Icons.trending_up, size: 14, color: Colors.white54),
                                   const SizedBox(width: 6),
                                   Text(
                                     'Est. MMR: ${rank['mmr']}',

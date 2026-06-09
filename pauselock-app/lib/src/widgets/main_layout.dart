@@ -27,7 +27,7 @@ class MainLayout extends StatelessWidget {
     } else {
       return Scaffold(
         appBar: AppBar(
-          title: Text(
+          title: const Text(
             'PAUSELOCK',
             style: TextStyle(
               color: AppTheme.primaryColor,
@@ -63,12 +63,12 @@ class MainLayout extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (!isMobile)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 40, 24, 40),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(24, 40, 24, 40),
               child: Row(
                 children: [
                   Icon(Icons.pause_circle_filled, color: AppTheme.primaryColor, size: 32),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   Text(
                     'PAUSELOCK',
                     style: TextStyle(
@@ -83,25 +83,25 @@ class MainLayout extends StatelessWidget {
             ),
           if (isMobile) const SizedBox(height: 40),
           
-          _SectionHeader(title: 'MENU'),
+          const _SectionHeader(title: 'MENU'),
           _NavItem(icon: Icons.home_rounded, label: 'Home', route: '/', currentPath: GoRouterState.of(context).uri.path),
           _NavItem(icon: Icons.search_rounded, label: 'Search Players', route: '/search', currentPath: GoRouterState.of(context).uri.path),
           _NavItem(icon: Icons.leaderboard_rounded, label: 'Leaderboard', route: '/leaderboard', currentPath: GoRouterState.of(context).uri.path),
           _NavItem(icon: Icons.star_rounded, label: 'Ranks', route: '/ranks', currentPath: GoRouterState.of(context).uri.path),
           
           const SizedBox(height: 20),
-          _SectionHeader(title: 'GAME DATA'),
+          const _SectionHeader(title: 'GAME DATA'),
           _NavItem(icon: Icons.people_alt_rounded, label: 'Heroes', route: '/heroes', currentPath: GoRouterState.of(context).uri.path),
           _NavItem(icon: Icons.build_circle_rounded, label: 'Builds', route: '/builds', currentPath: GoRouterState.of(context).uri.path),
           _NavItem(icon: Icons.emoji_events_rounded, label: 'Pro Builds', route: '/probuilds', currentPath: GoRouterState.of(context).uri.path),
           
           const SizedBox(height: 20),
-          _SectionHeader(title: 'PERSONAL'),
+          const _SectionHeader(title: 'PERSONAL'),
           _NavItem(icon: Icons.person_rounded, label: 'My Profile', route: '/profile', currentPath: GoRouterState.of(context).uri.path),
           
           const Spacer(),
-          Padding(
-            padding: const EdgeInsets.all(24.0),
+          const Padding(
+            padding: EdgeInsets.all(24.0),
             child: Text(
               'v1.0.0\nData provided by deadlock-api.com',
               style: TextStyle(color: Colors.white38, fontSize: 12, height: 1.5),

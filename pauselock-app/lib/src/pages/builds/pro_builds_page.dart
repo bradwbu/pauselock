@@ -96,7 +96,7 @@ class _ProBuildsPageState extends State<ProBuildsPage> {
                                 // Fallback if image fails to load
                                 child: Image.network(
                                   'https://assets.deadlock-api.com/images/heroes/$heroId.png',
-                                  errorBuilder: (context, error, stackTrace) => Icon(Icons.person, color: Colors.white54),
+                                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, color: Colors.white54),
                                   fit: BoxFit.cover,
                                 ),
                               ),
