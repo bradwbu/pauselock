@@ -52,3 +52,39 @@ jobs:
 
       - name: Run tests
         run: flutter test
+
+  deploy:
+    name: Deploy to Debian Trixie Server
+    needs: [frontend, backend]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Execute SSH Commands
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            # Debian Trixie non-interactive SSH often misses user PATHs. 
+            # Source profile to ensure flutter/dart commands are available.
+            source ~/.profile || true
+            source ~/.bashrc || true
+
+            cd /opt/pauselock
+            git pull origin main
+            
+            # Build Backend
+            cd pauselock-server
+            dart pub get
+            dart compile exe bin/server.dart -o pauselock_server
+            sudo systemctl restart pauselock
+            
+            # Build Frontend
+            cd ../pauselock-app
+            flutter pub get
+            flutter build web --release
+            
+            # Deploy statically to Nginx
+            sudo cp -r build/web/* /var/www/pauselock/
