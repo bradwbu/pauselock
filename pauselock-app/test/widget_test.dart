@@ -12,6 +12,7 @@ void main() {
   testWidgets('App basic rendering test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
     await tester.pumpWidget(const PauselockApp());
+    await tester.pumpAndSettle();
 
     // Verify that we are on the Home Page and PAUSELOCK text is rendered
     expect(find.text('PAUSELOCK'), findsOneWidget);
