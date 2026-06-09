@@ -2,17 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  static const Color primaryColor = Color(0xFF00D4FF);
+  static const Color primaryColor = Color(0xFFFF9900); // Tracklock orange
   static const Color secondaryColor = Color(0xFF7B2FFF);
-  static const Color accentColor = Color(0xFFFF2D95);
-  static const Color backgroundColor = Color(0xFF0A0E1A);
-  static const Color surfaceColor = Color(0xFF121829);
-  static const Color surfaceColorLight = Color(0xFF1A2035);
+  static const Color accentColor = Color(0xFF00D4FF);
+  static const Color backgroundColor = Color(0xFF0F111A); // Deep Charcoal
+  static const Color surfaceColor = Color(0xFF161A25); // Slightly lighter
+  static const Color surfaceColorLight = Color(0xFF1E2333);
   static const Color glassColor = Color(0x1AFFFFFF);
   static const Color textPrimary = Color(0xFFFFFFFF);
-  static const Color textSecondary = Color(0xFFB0B8D1);
+  static const Color textSecondary = Color(0xFFA0AABF);
   static const Color successColor = Color(0xFF00FF88);
-  static const Color warningColor = Color(0xFFFFAA00);
+  static const Color warningColor = Color(0xFFFFB300);
   static const Color errorColor = Color(0xFFFF4455);
 
   static LinearGradient get primaryGradient => const LinearGradient(

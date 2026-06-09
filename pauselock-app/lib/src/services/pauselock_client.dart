@@ -69,10 +69,11 @@ class PauselockClient {
   static Future<dynamic> _getJson(String path,
       [Map<String, String>? query]) async {
     try {
-      final uri = _serverUri.replace(
-        path: path.startsWith('/') ? path.substring(1) : path,
-        queryParameters: query?.isEmpty ?? true ? null : query,
-      );
+      final cleanPath = path.startsWith('/') ? path.substring(1) : path;
+      var uri = _serverUri.resolve(cleanPath);
+      if (query != null && query.isNotEmpty) {
+        uri = uri.replace(queryParameters: query);
+      }
       final response =
           await http.get(uri, headers: {'Accept': 'application/json'});
       if (response.statusCode < 200 || response.statusCode >= 300) {
