@@ -110,7 +110,6 @@ class _BuildDetailPageState extends State<BuildDetailPage> {
   }
 
   Widget _buildHeader(BuildContext context, Map<String, dynamic> build) {
-    final heroId = build['heroId'] ?? 0;
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Container(
