@@ -57,7 +57,7 @@ class _BuildDetailPageState extends State<BuildDetailPage> {
             future: PauselockClient.getBuildById(widget.buildId),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
+                return const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor));
               }
               final build = snapshot.data;
               if (snapshot.hasError || build == null) {
@@ -73,7 +73,13 @@ class _BuildDetailPageState extends State<BuildDetailPage> {
                     backgroundColor: Colors.transparent,
                     leading: IconButton(
                       icon: const Icon(Icons.arrow_back),
-                      onPressed: () => context.go('/builds'),
+                      onPressed: () {
+                        if (context.canPop()) {
+                          context.pop();
+                        } else {
+                          context.go('/builds');
+                        }
+                      },
                     ),
                     title: Text(
                       '${build['heroName'] ?? 'Hero'} Build',
@@ -104,6 +110,7 @@ class _BuildDetailPageState extends State<BuildDetailPage> {
   }
 
   Widget _buildHeader(BuildContext context, Map<String, dynamic> build) {
+    final heroId = build['heroId'] ?? 0;
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Container(
@@ -112,13 +119,41 @@ class _BuildDetailPageState extends State<BuildDetailPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(build['buildName'] ?? 'Untitled Build',
-                style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: 6),
-            Text(
-                '${build['heroName'] ?? 'Unknown Hero'} · ${build['author'] ?? 'Unknown Author'}',
-                style: Theme.of(context).textTheme.bodyMedium),
-            const SizedBox(height: 16),
+            Row(
+              children: [
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppTheme.primaryColor, width: 2),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: Image.network(
+                      'https://assets.deadlock-api.com/images/heroes/$heroId.png',
+                      fit: BoxFit.cover,
+                      errorBuilder: (c, e, s) => const Icon(Icons.person, color: Colors.white54),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(build['buildName'] ?? 'Untitled Build',
+                          style: Theme.of(context).textTheme.headlineSmall),
+                      const SizedBox(height: 4),
+                      Text(
+                          '${build['heroName'] ?? 'Unknown Hero'} · ${build['author'] ?? 'Unknown Author'}',
+                          style: Theme.of(context).textTheme.bodyMedium),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
             Row(
               children: [
                 _metric(context, Icons.star,
@@ -183,23 +218,45 @@ class _BuildDetailPageState extends State<BuildDetailPage> {
           Text('BUILD ITEMS', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 12),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: itemIds.take(48).map((id) {
+            spacing: 12,
+            runSpacing: 12,
+            children: itemIds.take(48).map((itemData) {
+              final id = itemData is Map ? itemData['id'] : itemData;
+              final name = itemData is Map ? itemData['name'] : 'Item $id';
+              
               return Container(
-                width: 132,
+                width: 160,
                 padding: const EdgeInsets.all(10),
-                decoration: AppTheme.glassDecorationSmall,
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceColorLight,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                ),
                 child: Row(
                   children: [
-                    const Icon(Icons.hexagon,
-                        size: 16, color: AppTheme.secondaryColor),
-                    const SizedBox(width: 8),
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: AppTheme.surfaceColor,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: Image.network(
+                          'https://assets.deadlock-api.com/images/items/$id.png',
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stack) => const Icon(Icons.category, size: 16, color: AppTheme.secondaryColor),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'Item $id',
-                        style: Theme.of(context).textTheme.bodySmall,
+                        name,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
                         overflow: TextOverflow.ellipsis,
+                        maxLines: 2,
                       ),
                     ),
                   ],
@@ -218,7 +275,11 @@ class _BuildDetailPageState extends State<BuildDetailPage> {
       child: Wrap(
         spacing: 8,
         runSpacing: 8,
-        children: tags.map((tag) => Chip(label: Text('$tag'))).toList(),
+        children: tags.map((tag) => Chip(
+          label: Text('$tag'),
+          backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
+          side: BorderSide(color: AppTheme.primaryColor.withValues(alpha: 0.3)),
+        )).toList(),
       ),
     );
   }

@@ -13,7 +13,8 @@ class HeroesPage extends StatefulWidget {
 
 class _HeroesPageState extends State<HeroesPage> {
   String _selectedRole = 'All';
-  final List<String> _roles = ['All', 'Carry', 'Support', 'Tank', 'Assassin', 'Mage'];
+  // Updated roles based on Deadlock internal classifications
+  final List<String> _roles = ['All', 'Assassin', 'Brawler', 'Marksman', 'Mystic'];
   List<dynamic> _heroes = [];
   bool _isLoading = true;
 
@@ -106,7 +107,7 @@ class _HeroesPageState extends State<HeroesPage> {
     );
   }
 
-Widget _buildLoadingCard() {
+  Widget _buildLoadingCard() {
     return Shimmer.fromColors(
       baseColor: AppTheme.surfaceColorLight,
       highlightColor: AppTheme.surfaceColor,
@@ -149,6 +150,12 @@ Widget _buildLoadingCard() {
   }
 
   Widget _buildMetaOverview(BuildContext context) {
+    if (_heroes.isEmpty) return const SizedBox.shrink();
+    
+    final mostPicked = _heroes.reduce((a, b) => (a['pickRate'] ?? 0) > (b['pickRate'] ?? 0) ? a : b);
+    final highestWr = _heroes.reduce((a, b) => (a['winRate'] ?? 0) > (b['winRate'] ?? 0) ? a : b);
+    final mostBanned = _heroes.reduce((a, b) => (a['banRate'] ?? 0) > (b['banRate'] ?? 0) ? a : b);
+
     return Container(
       padding: const EdgeInsets.all(16),
       child: Container(
@@ -162,9 +169,9 @@ Widget _buildLoadingCard() {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildMetaStat('Most Picked', _heroes.isNotEmpty ? _heroes.reduce((a, b) => (a['pickRate'] ?? 0) > (b['pickRate'] ?? 0) ? a : b)['name'] ?? 'Lash' : 'Lash', '${_heroes.isNotEmpty ? _heroes.reduce((a, b) => (a['pickRate'] ?? 0) > (b['pickRate'] ?? 0) ? a : b)['pickRate'] ?? 18 : 18}%'),
-                _buildMetaStat('Highest WR', _heroes.isNotEmpty ? _heroes.reduce((a, b) => (a['winRate'] ?? 0) > (b['winRate'] ?? 0) ? a : b)['name'] ?? 'Kelvin' : 'Kelvin', '${_heroes.isNotEmpty ? _heroes.reduce((a, b) => (a['winRate'] ?? 0) > (b['winRate'] ?? 0) ? a : b)['winRate'] ?? 55.2 : 55.2}%'),
-                _buildMetaStat('Most Banned', _heroes.isNotEmpty ? _heroes.reduce((a, b) => (a['banRate'] ?? 0) > (b['banRate'] ?? 0) ? a : b)['name'] ?? 'Haze' : 'Haze', '${_heroes.isNotEmpty ? _heroes.reduce((a, b) => (a['banRate'] ?? 0) > (b['banRate'] ?? 0) ? a : b)['banRate'] ?? 25 : 25}%'),
+                _buildMetaStat('Most Picked', mostPicked['name'] ?? 'Lash', '${mostPicked['pickRate'] ?? 18}%', mostPicked['id'] ?? 0),
+                _buildMetaStat('Highest WR', highestWr['name'] ?? 'Kelvin', '${highestWr['winRate'] ?? 55.2}%', highestWr['id'] ?? 0),
+                _buildMetaStat('Most Banned', mostBanned['name'] ?? 'Haze', '${mostBanned['banRate'] ?? 25}%', mostBanned['id'] ?? 0),
               ],
             ),
           ],
@@ -173,12 +180,28 @@ Widget _buildLoadingCard() {
     );
   }
 
-  Widget _buildMetaStat(String label, String value, String stat) {
+  Widget _buildMetaStat(String label, String value, String stat, int heroId) {
     return Column(
       children: [
         Text(label, style: Theme.of(context).textTheme.bodySmall),
-        const SizedBox(height: 4),
-        Text(value, style: Theme.of(context).textTheme.titleSmall?.copyWith(color: AppTheme.primaryColor)),
+        const SizedBox(height: 8),
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: AppTheme.primaryColor, width: 2),
+          ),
+          child: ClipOval(
+            child: Image.network(
+              'https://assets.deadlock-api.com/images/heroes/$heroId.png',
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stack) => const Icon(Icons.person, color: Colors.white54),
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(value, style: Theme.of(context).textTheme.titleSmall?.copyWith(color: Colors.white)),
         Text(stat, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppTheme.successColor)),
       ],
     );
@@ -198,13 +221,20 @@ Widget _buildLoadingCard() {
               alignment: Alignment.topRight,
               children: [
                 Container(
-                  width: 60,
-                  height: 60,
+                  width: 50,
+                  height: 50,
                   decoration: BoxDecoration(
-                    gradient: AppTheme.primaryGradient,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.5), width: 1),
                   ),
-                  child: const Icon(Icons.person, color: Colors.white, size: 30),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(9),
+                    child: Image.network(
+                      'https://assets.deadlock-api.com/images/heroes/$heroId.png',
+                      errorBuilder: (context, error, stack) => const Icon(Icons.person, color: Colors.white54),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
                 ),
                 if (isPopular)
                   Container(
@@ -215,8 +245,8 @@ Widget _buildLoadingCard() {
               ],
             ),
             const SizedBox(height: 8),
-            Text(name, style: Theme.of(context).textTheme.titleSmall, textAlign: TextAlign.center),
-            Text(role, style: Theme.of(context).textTheme.bodySmall),
+            Text(name, style: Theme.of(context).textTheme.titleSmall, textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
+            Text(role, style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 10), maxLines: 1, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 4),
             Text(winRate, style: TextStyle(color: wr > 50 ? AppTheme.successColor : AppTheme.errorColor, fontWeight: FontWeight.bold, fontSize: 12)),
           ],
@@ -225,4 +255,3 @@ Widget _buildLoadingCard() {
     );
   }
 }
-
