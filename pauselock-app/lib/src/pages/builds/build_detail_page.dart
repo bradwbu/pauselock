@@ -131,7 +131,7 @@ class _BuildDetailPageState extends State<BuildDetailPage> {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(6),
                     child: Image.network(
-                      'https://assets.deadlock-api.com/images/heroes/$heroId.png',
+                      build['heroIconUrl'] ?? 'https://assets-bucket.deadlock-api.com/assets-api-res/images/heroes/inferno_card.png',
                       fit: BoxFit.cover,
                       errorBuilder: (c, e, s) => const Icon(Icons.person, color: Colors.white54),
                     ),
@@ -244,7 +244,7 @@ class _BuildDetailPageState extends State<BuildDetailPage> {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(6),
                         child: Image.network(
-                          'https://assets.deadlock-api.com/images/items/$id.png',
+                          itemData is Map ? itemData['image'] : 'https://assets-bucket.deadlock-api.com/assets-api-res/images/abilities/weapon_damage.png',
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stack) => const Icon(Icons.category, size: 16, color: AppTheme.secondaryColor),
                         ),

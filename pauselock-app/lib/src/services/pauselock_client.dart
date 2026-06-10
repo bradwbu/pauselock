@@ -42,9 +42,59 @@ class PauselockClient {
     return result as List<dynamic>?;
   }
 
+  static final Map<int, Map<String, dynamic>> _itemCache = {};
+
+  static Future<Map<int, Map<String, dynamic>>> getAllItems() async {
+    if (_itemCache.isNotEmpty) return _itemCache;
+    try {
+      final response = await http.get(Uri.parse('https://assets.deadlock-api.com/v2/items'));
+      if (response.statusCode == 200) {
+        final List data = jsonDecode(response.body);
+        for (var item in data) {
+          if (item is Map && item['id'] != null) {
+            final intId = item['id'] is int ? item['id'] : int.tryParse('${item['id']}') ?? 0;
+            _itemCache[intId] = Map<String, dynamic>.from(item);
+          }
+        }
+      }
+    } catch (_) {}
+    return _itemCache;
+  }
+
   static Future<Map<String, dynamic>?> getBuildById(int buildId) async {
     final result = await _getJson('/build/$buildId');
-    return result as Map<String, dynamic>?;
+    if (result == null) return null;
+    
+    final map = Map<String, dynamic>.from(result as Map);
+    final itemsCache = await getAllItems();
+    
+    // Attach items
+    if (map['itemIds'] != null) {
+      final List itemIds = map['itemIds'];
+      final List<Map<String, dynamic>> populatedItems = [];
+      for (var id in itemIds) {
+        final intId = int.tryParse('$id') ?? 0;
+        final itemDetails = itemsCache[intId];
+        populatedItems.add({
+          'id': intId,
+          'name': itemDetails?['name']?.toString().replaceAll('_', ' ').toUpperCase() ?? 'Item $id',
+          'image': itemDetails?['image'] ?? 'https://assets-bucket.deadlock-api.com/assets-api-res/images/abilities/weapon_damage.png',
+        });
+      }
+      map['itemIds'] = populatedItems;
+    }
+
+    // Attach hero icon
+    final heroes = await getAllHeroes();
+    if (heroes != null && map['heroId'] != null) {
+      final heroId = map['heroId'];
+      final hero = heroes.firstWhere((h) => h['id'] == heroId, orElse: () => null);
+      if (hero != null && hero is Map) {
+        map['heroIconUrl'] = hero['iconUrl'] ?? hero['bannerPortraitUrl'];
+      }
+    }
+    
+    return map;
   }
 
   static Future<List<dynamic>?> getFeaturedBuilds({int limit = 10}) async {

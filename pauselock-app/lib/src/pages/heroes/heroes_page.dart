@@ -96,6 +96,7 @@ class _HeroesPageState extends State<HeroesPage> {
                         '${hero['winRate'] ?? 0}%',
                         (hero['popularity'] ?? 0) > 80,
                         hero['id'] ?? 0,
+                        hero['iconUrl'] ?? '',
                       )).toList(),
                     ),
                   ),
@@ -169,9 +170,9 @@ class _HeroesPageState extends State<HeroesPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildMetaStat('Most Picked', mostPicked['name'] ?? 'Lash', '${mostPicked['pickRate'] ?? 18}%', mostPicked['id'] ?? 0),
-                _buildMetaStat('Highest WR', highestWr['name'] ?? 'Kelvin', '${highestWr['winRate'] ?? 55.2}%', highestWr['id'] ?? 0),
-                _buildMetaStat('Most Banned', mostBanned['name'] ?? 'Haze', '${mostBanned['banRate'] ?? 25}%', mostBanned['id'] ?? 0),
+                _buildMetaStat('Most Picked', mostPicked['name'] ?? 'Lash', '${mostPicked['pickRate'] ?? 18}%', mostPicked['id'] ?? 0, mostPicked['iconUrl'] ?? ''),
+                _buildMetaStat('Highest WR', highestWr['name'] ?? 'Kelvin', '${highestWr['winRate'] ?? 55.2}%', highestWr['id'] ?? 0, highestWr['iconUrl'] ?? ''),
+                _buildMetaStat('Most Banned', mostBanned['name'] ?? 'Haze', '${mostBanned['banRate'] ?? 25}%', mostBanned['id'] ?? 0, mostBanned['iconUrl'] ?? ''),
               ],
             ),
           ],
@@ -180,7 +181,7 @@ class _HeroesPageState extends State<HeroesPage> {
     );
   }
 
-  Widget _buildMetaStat(String label, String value, String stat, int heroId) {
+  Widget _buildMetaStat(String label, String value, String stat, int heroId, String iconUrl) {
     return Column(
       children: [
         Text(label, style: Theme.of(context).textTheme.bodySmall),
@@ -194,7 +195,7 @@ class _HeroesPageState extends State<HeroesPage> {
           ),
           child: ClipOval(
             child: Image.network(
-              'https://assets.deadlock-api.com/images/heroes/$heroId.png',
+              iconUrl.isNotEmpty ? iconUrl : 'https://assets.deadlock-api.com/images/heroes/$heroId.png',
               fit: BoxFit.cover,
               errorBuilder: (context, error, stack) => const Icon(Icons.person, color: Colors.white54),
             ),
@@ -207,7 +208,7 @@ class _HeroesPageState extends State<HeroesPage> {
     );
   }
 
-  Widget _buildHeroCard(BuildContext context, String name, String role, String winRate, bool isPopular, int heroId) {
+  Widget _buildHeroCard(BuildContext context, String name, String role, String winRate, bool isPopular, int heroId, String iconUrl) {
     final wr = double.tryParse(winRate.replaceAll('%', '')) ?? 0;
     return GestureDetector(
       onTap: () => context.go('/heroes/$heroId'),
@@ -230,7 +231,7 @@ class _HeroesPageState extends State<HeroesPage> {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(9),
                     child: Image.network(
-                      'https://assets.deadlock-api.com/images/heroes/$heroId.png',
+                      iconUrl.isNotEmpty ? iconUrl : 'https://assets.deadlock-api.com/images/heroes/$heroId.png',
                       errorBuilder: (context, error, stack) => const Icon(Icons.person, color: Colors.white54),
                       fit: BoxFit.cover,
                     ),
