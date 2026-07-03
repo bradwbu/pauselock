@@ -401,6 +401,39 @@ class _HeroDetailPageState extends State<HeroDetailPage> {
                                       Theme.of(context).textTheme.titleSmall),
                               Text('By ${build['author'] ?? 'Unknown'}',
                                   style: Theme.of(context).textTheme.bodySmall),
+                              const SizedBox(height: 4),
+                              Wrap(
+                                spacing: 4,
+                                runSpacing: 4,
+                                children: ((build['items'] as List<dynamic>?) ?? [])
+                                    .take(3)
+                                    .map<Widget>((item) => Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: AppTheme.primaryColor.withValues(alpha: 0.15),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                _getItemIcon(item.toString()),
+                                                size: 12,
+                                                color: AppTheme.accentColor,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                item.toString(),
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  color: AppTheme.textSecondary,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ))
+                                    .toList(),
+                              ),
                             ],
                           ),
                         ),
@@ -425,7 +458,7 @@ class _HeroDetailPageState extends State<HeroDetailPage> {
     );
   }
 
-  Widget _buildWinRateSection(BuildContext context, double winRate) {
+Widget _buildWinRateSection(BuildContext context, double winRate) {
     return Container(
       padding: const EdgeInsets.all(24),
       child: Container(
@@ -444,12 +477,29 @@ class _HeroDetailPageState extends State<HeroDetailPage> {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Center(
-                  child: Text('Current WR: ${formatPercent(winRate)}',
-                      style: const TextStyle(color: AppTheme.textSecondary))),
-            ),
+                child: Text('Current WR: ${formatPercent(winRate)}',
+                    style: const TextStyle(color: AppTheme.textSecondary)),
+              )),
           ],
         ),
       ),
     );
+  }
+
+  IconData _getItemIcon(String itemName) {
+    final lower = itemName.toLowerCase();
+    if (lower.contains('boot') || lower.contains('sprint') || lower.contains('speed')) return Icons.directions_run;
+    if (lower.contains('drain') || lower.contains('heal') || lower.contains('hp') || lower.contains('vital')) return Icons.favorite;
+    if (lower.contains('damage') || lower.contains('dps') || lower.contains('fire') || lower.contains('flak')) return Icons.local_fire_department;
+    if (lower.contains('shield') || lower.contains('armor') || lower.contains('defense')) return Icons.shield;
+    if (lower.contains('storm') || lower.contains('lightning') || lower.contains('tesla') || lower.contains('electric')) return Icons.flash_on;
+    if (lower.contains('stealth') || lower.contains('shadow') || lower.contains('smoke')) return Icons.visibility_off;
+    if (lower.contains('droid') || lower.contains('turret') || lower.contains('sentri')) return Icons.smart_toy;
+    if (lower.contains('bullet') || lower.contains('gun') || lower.contains('rifle')) return Icons.sports_handball;
+    if (lower.contains('ring') || lower.contains('crystal') || lower.contains('orb')) return Icons.stars;
+    if (lower.contains('poison') || lower.contains('venom')) return Icons.warning;
+    if (lower.contains('blade') || lower.contains('dagger') || lower.contains('knife')) return Icons.content_cut;
+    if (lower.contains('scope') || lower.contains('zoom')) return Icons.zoom_in;
+    return Icons.inventory_2;
   }
 }

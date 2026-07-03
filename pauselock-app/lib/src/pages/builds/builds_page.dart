@@ -107,6 +107,7 @@ class _BuildsPageState extends State<BuildsPage> {
                                 formatCompactNumber(build['upvotes']),
                                 '${build['matchesPlayed'] ?? 0}',
                                 build['isFeatured'] ?? false,
+                                build['items'] ?? [],
                               ))
                           .toList(),
                     ),
@@ -239,6 +240,19 @@ class _BuildsPageState extends State<BuildsPage> {
                             style: Theme.of(context).textTheme.titleSmall),
                         Text('By ${build['author'] ?? 'Unknown'}',
                             style: Theme.of(context).textTheme.bodySmall),
+                        const SizedBox(height: 4),
+                        Wrap(
+                          spacing: 4,
+                          runSpacing: 4,
+                          children: ((build['items'] as List<dynamic>?) ?? [])
+                              .take(4)
+                              .map<Widget>((item) => Icon(
+                                    _getItemIcon(item.toString()),
+                                    size: 14,
+                                    color: AppTheme.accentColor,
+                                  ))
+                              .toList(),
+                        ),
                         const Spacer(),
                         Row(
                           children: [
@@ -269,7 +283,7 @@ class _BuildsPageState extends State<BuildsPage> {
   }
 
   Widget _buildBuildCard(BuildContext context, int id, String name, String hero,
-      String favorites, String matches, bool isFeatured) {
+      String favorites, String matches, bool isFeatured, List<dynamic> items) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: AppTheme.glassDecoration,
@@ -308,8 +322,44 @@ class _BuildsPageState extends State<BuildsPage> {
             ],
           ],
         ),
-        subtitle:
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Text('Hero: $hero', style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              children: (items as List<dynamic>).take(3).map((itemName) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _getItemIcon(itemName.toString()),
+                        size: 12,
+                        color: AppTheme.primaryColor,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        itemName.toString(),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
@@ -324,5 +374,22 @@ class _BuildsPageState extends State<BuildsPage> {
         onTap: () => context.go('/build/$id'),
       ),
     );
+  }
+
+  IconData _getItemIcon(String itemName) {
+    final lower = itemName.toLowerCase();
+    if (lower.contains('boot') || lower.contains('sprint') || lower.contains('speed')) return Icons.directions_run;
+    if (lower.contains('drain') || lower.contains('heal') || lower.contains('hp') || lower.contains('vital')) return Icons.favorite;
+    if (lower.contains('damage') || lower.contains('dps') || lower.contains('fire') || lower.contains('flak')) return Icons.local_fire_department;
+    if (lower.contains('shield') || lower.contains('armor') || lower.contains('defense')) return Icons.shield;
+    if (lower.contains('storm') || lower.contains('lightning') || lower.contains('tesla') || lower.contains('electric')) return Icons.flash_on;
+    if (lower.contains('stealth') || lower.contains('shadow') || lower.contains('smoke')) return Icons.visibility_off;
+    if (lower.contains('droid') || lower.contains('turret') || lower.contains('sentri')) return Icons.smart_toy;
+    if (lower.contains('bullet') || lower.contains('gun') || lower.contains('rifle')) return Icons.sports_handball;
+    if (lower.contains('ring') || lower.contains('crystal') || lower.contains('orb')) return Icons.stars;
+    if (lower.contains('poison') || lower.contains('venom')) return Icons.warning;
+    if (lower.contains('blade') || lower.contains('dagger') || lower.contains('knife')) return Icons.content_cut;
+    if (lower.contains('scope') || lower.contains('zoom')) return Icons.zoom_in;
+    return Icons.inventory_2;
   }
 }
