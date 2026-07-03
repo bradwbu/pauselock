@@ -151,23 +151,22 @@ class DeadlockApiService {
       final responses = await Future.wait([
         _getList(_apiBaseUrl, '/v1/builds', query),
         getHeroes(),
-        _fetchItems(),
       ]);
       final heroNames = {
         for (final hero in responses[1]) _asInt(hero['id']): '${hero['name']}',
       };
-      final itemsById = _buildItemsById(responses[2]);
-      return responses[0]
+      var builds = responses[0]
           .map((build) => _mapBuild(build, heroNames))
-          .map((build) => _enrichBuildItems(build, itemsById))
           .where((build) => build['id'] != null)
           .toList();
+      builds = await _enrichBuilds(builds);
+      return builds;
     } catch (error) {
       stderr.writeln('Deadlock builds API fallback: $error');
       var builds = _seedBuilds(
           heroId: heroId, limit: limit, featuredOnly: featuredOnly);
-      final itemsById = await _buildItemIdMap();
-      return builds.map((b) => _enrichBuildItems(b, itemsById)).toList();
+      builds = await _enrichBuilds(builds);
+      return builds;
     }
   }
 
@@ -178,24 +177,29 @@ class DeadlockApiService {
         'limit': '1',
       }),
       getHeroes(),
-      _fetchItems(),
     ]);
     final direct = responses[0];
     final heroNames = {
       for (final hero in responses[1]) _asInt(hero['id']): '${hero['name']}',
     };
-    final itemsById = _buildItemsById(responses[2]);
     final build = direct.map((b) => _mapBuild(b, heroNames)).firstOrNull;
     if (build == null) return null;
-    return _enrichBuildItems(build, itemsById);
+    final enriched = await _enrichBuilds([build]);
+    return enriched.isEmpty ? build : enriched.first;
+  }
+
+  Future<List<Map<String, dynamic>>> _enrichBuilds(List<Map<String, dynamic>> builds) async {
+    try {
+      final items = await _fetchItems();
+      final itemsById = _buildItemsById(items);
+      return builds.map((b) => _enrichBuildItems(b, itemsById)).toList();
+    } catch (_) {
+      return builds;
+    }
   }
 
   Map<int, Map<String, dynamic>> _buildItemsById(List<Map<String, dynamic>> items) {
     return {for (final item in items) _asInt(item['id']): item};
-  }
-
-  Future<Map<int, Map<String, dynamic>>> _buildItemIdMap() async {
-    return _buildItemsById(await _fetchItems());
   }
 
   Map<String, dynamic> _enrichBuildItems(
