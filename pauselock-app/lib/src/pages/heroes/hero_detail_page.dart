@@ -413,16 +413,34 @@ class _HeroDetailPageState extends State<HeroDetailPage> {
                                 runSpacing: 4,
                                 children: (() {
                                   final itemIds = (build['itemIds'] as List<dynamic>?) ?? [];
-                                  return itemIds.take(3).map<Widget>((id) {
+                                  final itemNames = (build['items'] as List<dynamic>?) ?? [];
+                                  return List.generate(itemIds.length.clamp(0, 3), (i) {
+                                    final id = itemIds[i];
                                     final intId = int.tryParse('$id') ?? 0;
                                     final item = _itemsCache[intId];
                                     final imageUrl = item?['imageUrl']?.toString() ?? '';
-                                    final itemName = item?['name']?.toString() ?? 'Item $id';
+                                    final itemName = item?['name']?.toString() ??
+                                        (i < itemNames.length ? '${itemNames[i]}' : 'Item $id');
                                     final slot = (item?['slotType'] ?? '').toString();
-                                    final icon = slot == 'weapon' ? Icons.gps_fixed
-                                        : slot == 'spirit' ? Icons.auto_awesome
-                                        : slot == 'vitality' ? Icons.favorite
-                                        : Icons.inventory_2;
+                                    IconData icon;
+                                    if (slot == 'weapon') {
+                                      icon = Icons.gps_fixed;
+                                    } else if (slot == 'spirit') {
+                                      icon = Icons.auto_awesome;
+                                    } else if (slot == 'vitality') {
+                                      icon = Icons.favorite;
+                                    } else {
+                                      final lower = itemName.toLowerCase();
+                                      if (lower.contains('bullet') || lower.contains('round') || lower.contains('shot')) {
+                                        icon = Icons.gps_fixed;
+                                      } else if (lower.contains('health') || lower.contains('armor') || lower.contains('regen') || lower.contains('lifesteal')) {
+                                        icon = Icons.favorite;
+                                      } else if (lower.contains('spirit') || lower.contains('mystic') || lower.contains('cooldown')) {
+                                        icon = Icons.auto_awesome;
+                                      } else {
+                                        icon = Icons.inventory_2;
+                                      }
+                                    }
                                     return Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                       decoration: BoxDecoration(

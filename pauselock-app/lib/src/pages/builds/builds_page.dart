@@ -43,11 +43,22 @@ class _BuildsPageState extends State<BuildsPage> {
     });
   }
 
-  List<Map<String, dynamic>> _resolveItems(List<dynamic> itemIds) {
-    return itemIds.map((id) {
+  List<Map<String, dynamic>> _resolveItems(
+      List<dynamic> itemIds, List<dynamic> fallbackNames) {
+    return List.generate(itemIds.length, (i) {
+      final id = itemIds[i];
       final intId = int.tryParse('$id') ?? 0;
-      return _itemsCache[intId] ?? {'id': intId, 'name': 'Item $id', 'slotType': '', 'imageUrl': ''};
-    }).toList();
+      final cached = _itemsCache[intId];
+      if (cached != null) return cached;
+      final fallbackName =
+          i < fallbackNames.length ? '${fallbackNames[i]}' : 'Item $id';
+      return <String, dynamic>{
+        'id': intId,
+        'name': fallbackName,
+        'slotType': '',
+        'imageUrl': '',
+      };
+    });
   }
 
   IconData _itemIcon(Map<String, dynamic>? item) {
@@ -56,6 +67,12 @@ class _BuildsPageState extends State<BuildsPage> {
     if (slot == 'weapon') return Icons.gps_fixed;
     if (slot == 'spirit') return Icons.auto_awesome;
     if (slot == 'vitality') return Icons.favorite;
+    final name = (item['name'] ?? '').toString().toLowerCase();
+    if (name.contains('bullet') || name.contains('round') || name.contains('shot')) return Icons.gps_fixed;
+    if (name.contains('health') || name.contains('armor') || name.contains('regen') || name.contains('lifesteal')) return Icons.favorite;
+    if (name.contains('spirit') || name.contains('mystic') || name.contains('cooldown')) return Icons.auto_awesome;
+    if (name.contains('headshot') || name.contains('crit')) return Icons.ads_click;
+    if (name.contains('heal')) return Icons.healing;
     return Icons.inventory_2;
   }
 
@@ -125,7 +142,8 @@ class _BuildsPageState extends State<BuildsPage> {
                                 formatCompactNumber(build['upvotes']),
                                 '${build['matchesPlayed'] ?? 0}',
                                 build['isFeatured'] ?? false,
-                                build['itemIds'] ?? [],
+                                (build['itemIds'] as List<dynamic>?) ?? [],
+                                (build['items'] as List<dynamic>?) ?? [],
                               ))
                           .toList(),
                     ),
@@ -314,8 +332,8 @@ class _BuildsPageState extends State<BuildsPage> {
   }
 
   Widget _buildBuildCard(BuildContext context, int id, String name, String hero,
-      String favorites, String matches, bool isFeatured, List<dynamic> itemIds) {
-    final resolvedItems = _resolveItems(itemIds);
+      String favorites, String matches, bool isFeatured, List<dynamic> itemIds, List<dynamic> itemNames) {
+    final resolvedItems = _resolveItems(itemIds, itemNames);
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: AppTheme.glassDecoration,

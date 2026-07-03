@@ -330,13 +330,29 @@ class DeadlockApiService {
     return item['type'] == 'upgrade' && _asInt(item['cost']) > 0;
   }
 
+  String _cleanItemName(String raw) {
+    if (raw.isEmpty) return raw;
+    if (!raw.contains('_')) return raw;
+    var cleaned = raw;
+    for (final prefix in ['upgrade_', 'ability_', 'mod_', 'citadel_']) {
+      if (cleaned.startsWith(prefix)) {
+        cleaned = cleaned.substring(prefix.length);
+        break;
+      }
+    }
+    return cleaned.split('_').map((word) {
+      if (word.isEmpty) return '';
+      return word[0].toUpperCase() + word.substring(1);
+    }).join(' ');
+  }
+
   ItemData _toItemData(Map<String, dynamic> item) {
-    final name = '${item['name'] ?? ''}';
-    final displayName = name.contains('_') ? name.split('_').skip(1).join(' ') : name;
+    final rawName = '${item['name'] ?? ''}';
+    final cleanName = _cleanItemName(rawName);
     return ItemData(
       id: _asInt(item['id']),
       className: '${item['class_name'] ?? ''}',
-      name: displayName.isEmpty || displayName == 'upgrade' ? name : displayName,
+      name: cleanName,
       cost: _asInt(item['cost']),
       imageUrl: '${item['image_webp'] ?? item['image'] ?? ''}',
       slotType: '${item['item_slot_type'] ?? ''}',
