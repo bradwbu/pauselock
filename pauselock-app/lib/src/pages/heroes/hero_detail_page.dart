@@ -424,7 +424,7 @@ class _HeroDetailPageState extends State<HeroDetailPage> {
                                               const SizedBox(width: 4),
                                               Text(
                                                 item.toString(),
-                                                style: TextStyle(
+                                                style: const TextStyle(
                                                   fontSize: 10,
                                                   color: AppTheme.textSecondary,
                                                 ),

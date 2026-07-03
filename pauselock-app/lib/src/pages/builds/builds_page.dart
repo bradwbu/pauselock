@@ -330,7 +330,7 @@ class _BuildsPageState extends State<BuildsPage> {
             Wrap(
               spacing: 4,
               runSpacing: 4,
-              children: (items as List<dynamic>).take(3).map((itemName) {
+              children: items.take(3).map((itemName) {
                 return Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
@@ -348,7 +348,7 @@ class _BuildsPageState extends State<BuildsPage> {
                       const SizedBox(width: 4),
                       Text(
                         itemName.toString(),
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 10,
                           color: AppTheme.textSecondary,
                         ),
