@@ -133,19 +133,20 @@ class _BuildsPageState extends State<BuildsPage> {
                 else
                   SliverList(
                     delegate: SliverChildListDelegate(
-                      _filteredBuilds
-                          .map((build) => _buildBuildCard(
-                                context,
-                                asInt(build['id']),
-                                build['buildName'] ?? 'Unknown Build',
-                                build['heroName'] ?? 'Unknown Hero',
-                                formatCompactNumber(build['upvotes']),
-                                '${build['matchesPlayed'] ?? 0}',
-                                build['isFeatured'] ?? false,
-                                (build['itemIds'] as List<dynamic>?) ?? [],
-                                (build['items'] as List<dynamic>?) ?? [],
-                              ))
-                          .toList(),
+                      _filteredBuilds.map((build) {
+                        _seedCacheFromDetails(build);
+                        return _buildBuildCard(
+                          context,
+                          asInt(build['id']),
+                          build['buildName'] ?? 'Unknown Build',
+                          build['heroName'] ?? 'Unknown Hero',
+                          formatCompactNumber(build['upvotes']),
+                          '${build['matchesPlayed'] ?? 0}',
+                          build['isFeatured'] ?? false,
+                          (build['itemIds'] as List<dynamic>?) ?? [],
+                          (build['items'] as List<dynamic>?) ?? [],
+                        );
+                      }).toList(),
                     ),
                   ),
               ],
@@ -154,6 +155,18 @@ class _BuildsPageState extends State<BuildsPage> {
         ),
       ),
     );
+  }
+
+  void _seedCacheFromDetails(Map<String, dynamic> build) {
+    final details = (build['itemDetails'] as List<dynamic>?) ?? [];
+    for (final detail in details) {
+      if (detail is Map && detail['id'] != null) {
+        final id = detail['id'] is int ? detail['id'] : int.tryParse('${detail['id']}') ?? 0;
+        if (id > 0 && !_itemsCache.containsKey(id)) {
+          _itemsCache[id] = Map<String, dynamic>.from(detail);
+        }
+      }
+    }
   }
 
   Widget _buildLoadingCard() {

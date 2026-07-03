@@ -151,18 +151,23 @@ class DeadlockApiService {
       final responses = await Future.wait([
         _getList(_apiBaseUrl, '/v1/builds', query),
         getHeroes(),
+        _fetchItems(),
       ]);
       final heroNames = {
         for (final hero in responses[1]) _asInt(hero['id']): '${hero['name']}',
       };
+      final itemsById = _buildItemsById(responses[2]);
       return responses[0]
           .map((build) => _mapBuild(build, heroNames))
+          .map((build) => _enrichBuildItems(build, itemsById))
           .where((build) => build['id'] != null)
           .toList();
     } catch (error) {
       stderr.writeln('Deadlock builds API fallback: $error');
-      return _seedBuilds(
+      var builds = _seedBuilds(
           heroId: heroId, limit: limit, featuredOnly: featuredOnly);
+      final itemsById = await _buildItemIdMap();
+      return builds.map((b) => _enrichBuildItems(b, itemsById)).toList();
     }
   }
 
@@ -173,12 +178,63 @@ class DeadlockApiService {
         'limit': '1',
       }),
       getHeroes(),
+      _fetchItems(),
     ]);
     final direct = responses[0];
     final heroNames = {
       for (final hero in responses[1]) _asInt(hero['id']): '${hero['name']}',
     };
-    return direct.map((build) => _mapBuild(build, heroNames)).firstOrNull;
+    final itemsById = _buildItemsById(responses[2]);
+    final build = direct.map((b) => _mapBuild(b, heroNames)).firstOrNull;
+    if (build == null) return null;
+    return _enrichBuildItems(build, itemsById);
+  }
+
+  Map<int, Map<String, dynamic>> _buildItemsById(List<Map<String, dynamic>> items) {
+    return {for (final item in items) _asInt(item['id']): item};
+  }
+
+  Future<Map<int, Map<String, dynamic>>> _buildItemIdMap() async {
+    return _buildItemsById(await _fetchItems());
+  }
+
+  Map<String, dynamic> _enrichBuildItems(
+      Map<String, dynamic> build, Map<int, Map<String, dynamic>> itemsById) {
+    final rawIds = (build['itemIds'] as List?) ?? [];
+    final enrichedNames = <String>[];
+    final enrichedDetails = <Map<String, dynamic>>[];
+    for (final rawId in rawIds) {
+      final id = int.tryParse('$rawId') ?? _asInt(rawId);
+      final itemData = itemsById[id];
+      if (itemData != null) {
+        final itemName = _toItemData(itemData).name;
+        enrichedNames.add(itemName);
+        enrichedDetails.add({
+          'id': id,
+          'name': itemName,
+          'imageUrl': '${itemData['image_webp'] ?? itemData['image'] ?? ''}',
+          'slotType': '${itemData['item_slot_type'] ?? ''}',
+          'cost': _asInt(itemData['cost']),
+          'tier': _asInt(itemData['item_tier']),
+        });
+      } else {
+        enrichedNames.add('Item $id');
+        enrichedDetails.add({
+          'id': id,
+          'name': 'Item $id',
+          'imageUrl': '',
+          'slotType': '',
+          'cost': 0,
+          'tier': 1,
+        });
+      }
+    }
+    return {
+      ...build,
+      'items': enrichedNames,
+      'itemDetails': enrichedDetails,
+      'itemIds': rawIds.map((id) => '$id').toList(),
+    };
   }
 
   Future<List<Map<String, dynamic>>> searchPlayers(String query) async {

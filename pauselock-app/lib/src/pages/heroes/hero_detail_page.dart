@@ -377,7 +377,17 @@ class _HeroDetailPageState extends State<HeroDetailPage> {
               ],
             ),
             const SizedBox(height: 12),
-            ...builds.take(3).map((build) => InkWell(
+            ...builds.take(3).map((build) {
+              final details = (build['itemDetails'] as List<dynamic>?) ?? [];
+              for (final detail in details) {
+                if (detail is Map && detail['id'] != null) {
+                  final id = detail['id'] is int ? detail['id'] : int.tryParse('${detail['id']}') ?? 0;
+                  if (id > 0 && !_itemsCache.containsKey(id)) {
+                    _itemsCache[id] = Map<String, dynamic>.from(detail);
+                  }
+                }
+              }
+              return InkWell(
                   onTap: () => context.go('/build/${build['id']}'),
                   borderRadius: BorderRadius.circular(12),
                   child: Container(
@@ -487,7 +497,8 @@ class _HeroDetailPageState extends State<HeroDetailPage> {
                       ],
                     ),
                   ),
-                )),
+                );
+              }),
           ],
         ),
       ),
