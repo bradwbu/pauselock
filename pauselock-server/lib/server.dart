@@ -68,6 +68,13 @@ Future<void> _handleRequest(HttpRequest request) async {
           region: query['region'],
           limit: int.tryParse(query['limit'] ?? '100') ?? 100,
         ),
+      '/item/all' => await _deadlockApi.getItems(),
+      String p when p.startsWith('/item/slot/') =>
+        await _deadlockApi.getItemsBySlotType(p.split('/').last),
+      String p when p.startsWith('/item/tier/') =>
+        await _deadlockApi.getItemsByTier(int.tryParse(p.split('/').last) ?? 0),
+      String p when p.startsWith('/item/') =>
+        await _deadlockApi.getItemById(int.tryParse(p.split('/').last) ?? 0),
       '/stats/global' => await _deadlockApi.getGlobalStats(),
       _ => _notFound(path),
     };

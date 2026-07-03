@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:pauselock_server/src/endpoints/build_endpoint.dart';
 import 'package:pauselock_server/src/endpoints/hero_endpoint.dart';
 import 'package:pauselock_server/src/endpoints/player_endpoint.dart';
+import 'package:pauselock_server/src/generated/protocol.dart';
 
 class DeadlockApiService {
   DeadlockApiService({http.Client? client})
@@ -262,6 +263,152 @@ class DeadlockApiService {
       return players.take(limit).toList();
     }
   }
+
+  static const _itemUrl = 'https://api.deadlock-api.com/v1/assets/items';
+  static List<Map<String, dynamic>>? _cachedItems;
+  static DateTime? _itemsCachedAt;
+  static const _itemCacheDuration = Duration(minutes: 10);
+
+  Future<List<Map<String, dynamic>>> _fetchItems() async {
+    if (_cachedItems != null &&
+        _itemsCachedAt != null &&
+        DateTime.now().difference(_itemsCachedAt!) < _itemCacheDuration) {
+      return _cachedItems!;
+    }
+    try {
+      final response = await _client.get(
+        Uri.parse(_itemUrl),
+        headers: {'Accept': 'application/json'},
+      );
+      if (response.statusCode == 200) {
+        final data = (jsonDecode(response.body) as List)
+            .whereType<Map<String, dynamic>>()
+            .map((m) => Map<String, dynamic>.from(m))
+            .toList();
+        _cachedItems = data;
+        _itemsCachedAt = DateTime.now();
+        return data;
+      }
+    } catch (_) {}
+    return _seedItems;
+  }
+
+  Future<List<ItemData>> getItems() async {
+    final items = await _fetchItems();
+    return items.where((i) => _isPurchasable(i)).map(_toItemData).toList();
+  }
+
+  Future<List<ItemData>> getItemsBySlotType(String slotType) async {
+    final items = await _fetchItems();
+    return items
+        .where((i) =>
+            _isPurchasable(i) &&
+            '${i['item_slot_type']}' == slotType)
+        .map(_toItemData)
+        .toList();
+  }
+
+  Future<List<ItemData>> getItemsByTier(int tier) async {
+    final items = await _fetchItems();
+    return items
+        .where((i) =>
+            _isPurchasable(i) && '${i['item_tier']}' == '$tier')
+        .map(_toItemData)
+        .toList();
+  }
+
+  Future<ItemData?> getItemById(int itemId) async {
+    final items = await _fetchItems();
+    final match = items.cast<Map<String, dynamic>?>().firstWhere(
+        (i) => _asInt(i?['id']) == itemId,
+        orElse: () => null);
+    if (match == null) return null;
+    return _toItemData(match);
+  }
+
+  bool _isPurchasable(Map<String, dynamic> item) {
+    return item['type'] == 'upgrade' && _asInt(item['cost']) > 0;
+  }
+
+  ItemData _toItemData(Map<String, dynamic> item) {
+    final name = '${item['name'] ?? ''}';
+    final displayName = name.contains('_') ? name.split('_').skip(1).join(' ') : name;
+    return ItemData(
+      id: _asInt(item['id']),
+      className: '${item['class_name'] ?? ''}',
+      name: displayName.isEmpty || displayName == 'upgrade' ? name : displayName,
+      cost: _asInt(item['cost']),
+      imageUrl: '${item['image_webp'] ?? item['image'] ?? ''}',
+      slotType: '${item['item_slot_type'] ?? ''}',
+      tier: _asInt(item['item_tier']),
+      isActive: item['is_active_item'] == true,
+    );
+  }
+
+  static List<Map<String, dynamic>> get _seedItems => [
+    for (final item in [
+      [1248737459, 'Ammo Scavenger', 800, 'spirit', 1],
+      [1342610602, 'Close Quarters', 800, 'weapon', 1],
+      [558396679, 'Enduring Spirit', 800, 'vitality', 1],
+      [1548066885, 'Extended Magazine', 800, 'weapon', 1],
+      [3633614685, 'Extra Health', 800, 'vitality', 1],
+      [2829638276, 'Extra Regen', 800, 'vitality', 1],
+      [968099481, 'Extra Spirit', 800, 'spirit', 1],
+      [1672893796, 'Grit', 800, 'vitality', 1],
+      [2010028405, 'Headshot Booster', 800, 'weapon', 1],
+      [1710079648, 'Healing Rite', 800, 'vitality', 1],
+      [3077079169, 'High-Velocity Rounds', 800, 'weapon', 1],
+      [1009965641, 'Monster Rounds', 800, 'weapon', 1],
+      [1998374645, 'Mystic Burst', 800, 'spirit', 1],
+      [754480263, 'Mystic Expansion', 800, 'spirit', 1],
+      [1439347412, 'Mystic Regeneration', 800, 'spirit', 1],
+      [668299740, 'Rapid Rounds', 800, 'weapon', 1],
+      [3399065363, 'Sprint Boots', 800, 'vitality', 1],
+      [3713423303, 'Bullet Armor', 1600, 'vitality', 2],
+      [499683006, 'Bullet Lifesteal', 1600, 'vitality', 2],
+      [380806748, 'Compress Cooldown', 1600, 'spirit', 2],
+      [3970837787, 'Enchanter\'s Emblem', 1600, 'vitality', 2],
+      [3403085434, 'Fleetfoot', 1600, 'weapon', 2],
+      [2566692615, 'Healing Booster', 1600, 'vitality', 2],
+      [2858617477, 'Toughness', 1600, 'vitality', 2],
+      [865846625, 'Leech', 6400, 'vitality', 4],
+      [3270001687, 'Warp Stone', 3200, 'vitality', 3],
+      [2717651715, 'Superior Duration', 3200, 'spirit', 3],
+      [3261353684, 'Superior Cooldown', 3200, 'spirit', 3],
+      [630839635, 'Echo Shard', 6400, 'spirit', 4],
+      [2480592370, 'Ricochet', 6400, 'weapon', 4],
+      [3696726732, 'Toxic Bullets', 3200, 'weapon', 3],
+      [393974127, 'Slowing Bullets', 1600, 'weapon', 2],
+      [1292979587, 'Surge of Power', 3200, 'spirit', 3],
+      [915014646, 'Transcendent Cooldown', 6400, 'spirit', 4],
+      [1396247347, 'Lucky Shot', 6400, 'weapon', 4],
+      [3884003354, 'Crippling Headshot', 6400, 'weapon', 4],
+      [1282141666, 'Siphon Bullets', 6400, 'vitality', 4],
+      [2152872419, 'Sharpshooter', 3200, 'weapon', 3],
+      [84321454, 'Quicksilver Reload', 1600, 'spirit', 2],
+      [98582110, 'Stalker', 1600, 'weapon', 2],
+      [1798666702, 'Shadow Weave', 3200, 'weapon', 3],
+      [1371725689, 'Phantom Strike', 6400, 'vitality', 4],
+      [1437614329, 'Melee Lifesteal', 800, 'vitality', 1],
+      [811521119, 'Tesla Bullets', 3200, 'weapon', 3],
+      [4104549924, 'Swift Striker', 1600, 'weapon', 2],
+      [1976391348, 'Cold Front', 1600, 'spirit', 2],
+      [381961617, 'Active Reload', 1600, 'weapon', 2],
+      [2678489038, 'Hollow Point', 3200, 'weapon', 3],
+    ])
+    {
+      'id': item[0],
+      'class_name': '$item[0]',
+      'name': item[1],
+      'cost': item[2],
+      'item_slot_type': item[3],
+      'image_webp': '',
+      'image': '',
+      'item_tier': item[4],
+      'is_active_item': false,
+      'type': 'upgrade',
+    },
+  ];
 
   Future<Map<String, dynamic>> getGlobalStats() async {
     try {

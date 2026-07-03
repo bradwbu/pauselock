@@ -226,6 +226,39 @@ class HeroFilter {
   HeroFilter({this.roles, this.primaryAttribute, this.searchQuery, this.limit});
 }
 
+class ItemData {
+  int id;
+  String className;
+  String name;
+  int cost;
+  String imageUrl;
+  String slotType;
+  int tier;
+  bool isActive;
+
+  ItemData({
+    required this.id,
+    required this.className,
+    required this.name,
+    required this.cost,
+    required this.imageUrl,
+    required this.slotType,
+    required this.tier,
+    required this.isActive,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'className': className,
+        'name': name,
+        'cost': cost,
+        'imageUrl': imageUrl,
+        'slotType': slotType,
+        'tier': tier,
+        'isActive': isActive,
+      };
+}
+
 class BuildFilter {
   int? heroId;
   String? searchQuery;

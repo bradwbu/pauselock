@@ -47,18 +47,41 @@ class PauselockClient {
   static Future<Map<int, Map<String, dynamic>>> getAllItems() async {
     if (_itemCache.isNotEmpty) return _itemCache;
     try {
-      final response = await http.get(Uri.parse('https://assets.deadlock-api.com/v2/items'));
-      if (response.statusCode == 200) {
-        final List data = jsonDecode(response.body);
-        for (var item in data) {
+      final result = await _getJson('/item/all');
+      if (result is List) {
+        for (var item in result) {
           if (item is Map && item['id'] != null) {
             final intId = item['id'] is int ? item['id'] : int.tryParse('${item['id']}') ?? 0;
             _itemCache[intId] = Map<String, dynamic>.from(item);
           }
         }
       }
-    } catch (_) {}
+    } catch (_) {
+      try {
+        final response = await http.get(Uri.parse('https://assets.deadlock-api.com/v2/items'));
+        if (response.statusCode == 200) {
+          final List data = jsonDecode(response.body);
+          for (var item in data) {
+            if (item is Map && item['id'] != null) {
+              final intId = item['id'] is int ? item['id'] : int.tryParse('${item['id']}') ?? 0;
+              _itemCache[intId] = Map<String, dynamic>.from(item);
+            }
+          }
+        }
+      } catch (_) {}
+    }
     return _itemCache;
+  }
+
+  static Future<List<Map<String, dynamic>>?> getItemsBySlotType(String slotType) async {
+    final result = await _getJson('/item/slot/$slotType');
+    if (result is List) return result.cast<Map<String, dynamic>>();
+    return null;
+  }
+
+  static Future<Map<String, dynamic>?> getItemById(int itemId) async {
+    final itemsCache = await getAllItems();
+    return itemsCache[itemId];
   }
 
   static Future<Map<String, dynamic>?> getBuildById(int buildId) async {
@@ -68,7 +91,6 @@ class PauselockClient {
     final map = Map<String, dynamic>.from(result as Map);
     final itemsCache = await getAllItems();
     
-    // Attach items
     if (map['itemIds'] != null) {
       final List itemIds = map['itemIds'];
       final List<Map<String, dynamic>> populatedItems = [];
@@ -77,14 +99,16 @@ class PauselockClient {
         final itemDetails = itemsCache[intId];
         populatedItems.add({
           'id': intId,
-          'name': itemDetails?['name']?.toString().replaceAll('_', ' ').toUpperCase() ?? 'Item $id',
-          'image': itemDetails?['image'] ?? 'https://assets-bucket.deadlock-api.com/assets-api-res/images/abilities/weapon_damage.png',
+          'name': itemDetails?['name']?.toString() ?? 'Item $id',
+          'imageUrl': itemDetails?['imageUrl']?.toString() ?? '',
+          'cost': itemDetails?['cost'] ?? 0,
+          'slotType': itemDetails?['slotType']?.toString() ?? '',
+          'tier': itemDetails?['tier'] ?? 1,
         });
       }
       map['itemIds'] = populatedItems;
     }
 
-    // Attach hero icon
     final heroes = await getAllHeroes();
     if (heroes != null && map['heroId'] != null) {
       final heroId = map['heroId'];

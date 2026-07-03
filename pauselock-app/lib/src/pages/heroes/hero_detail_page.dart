@@ -47,6 +47,8 @@ class _HeroDetailPageState extends State<HeroDetailPage> {
     }
   }
 
+  Map<int, Map<String, dynamic>> _itemsCache = {};
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -57,6 +59,7 @@ class _HeroDetailPageState extends State<HeroDetailPage> {
             future: Future.wait([
               Future.value(PauselockClient.getHeroById(widget.heroId)),
               Future.value(PauselockClient.getBuildsByHero(widget.heroId)),
+              PauselockClient.getAllItems(),
             ]),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
@@ -69,6 +72,9 @@ class _HeroDetailPageState extends State<HeroDetailPage> {
               }
               final heroData = snapshot.data![0];
               final buildsData = snapshot.data![1] as List<dynamic>? ?? [];
+              _itemsCache = (snapshot.data!.length > 2 && snapshot.data![2] is Map) 
+                  ? Map<int, Map<String, dynamic>>.from(snapshot.data![2] as Map) 
+                  : {};
 
               if (heroData == null) {
                 return _buildErrorState(context);
@@ -405,34 +411,46 @@ class _HeroDetailPageState extends State<HeroDetailPage> {
                               Wrap(
                                 spacing: 4,
                                 runSpacing: 4,
-                                children: ((build['items'] as List<dynamic>?) ?? [])
-                                    .take(3)
-                                    .map<Widget>((item) => Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: AppTheme.primaryColor.withValues(alpha: 0.15),
-                                            borderRadius: BorderRadius.circular(4),
+                                children: (() {
+                                  final itemIds = (build['itemIds'] as List<dynamic>?) ?? [];
+                                  return itemIds.take(3).map<Widget>((id) {
+                                    final intId = int.tryParse('$id') ?? 0;
+                                    final item = _itemsCache[intId];
+                                    final imageUrl = item?['imageUrl']?.toString() ?? '';
+                                    final itemName = item?['name']?.toString() ?? 'Item $id';
+                                    final slot = (item?['slotType'] ?? '').toString();
+                                    final icon = slot == 'weapon' ? Icons.gps_fixed
+                                        : slot == 'spirit' ? Icons.auto_awesome
+                                        : slot == 'vitality' ? Icons.favorite
+                                        : Icons.inventory_2;
+                                    return Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.primaryColor.withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          if (imageUrl.isNotEmpty)
+                                            Image.network(imageUrl, width: 12, height: 12,
+                                              errorBuilder: (_, __, ___) => Icon(icon, size: 12, color: AppTheme.accentColor),
+                                            )
+                                          else
+                                            Icon(icon, size: 12, color: AppTheme.accentColor),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            itemName,
+                                            style: const TextStyle(
+                                              fontSize: 10,
+                                              color: AppTheme.textSecondary,
+                                            ),
                                           ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Icon(
-                                                _getItemIcon(item.toString()),
-                                                size: 12,
-                                                color: AppTheme.accentColor,
-                                              ),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                item.toString(),
-                                                style: const TextStyle(
-                                                  fontSize: 10,
-                                                  color: AppTheme.textSecondary,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ))
-                                    .toList(),
+                                        ],
+                                      ),
+                                    );
+                                  }).toList();
+                                })(),
                               ),
                             ],
                           ),
@@ -486,20 +504,5 @@ Widget _buildWinRateSection(BuildContext context, double winRate) {
     );
   }
 
-  IconData _getItemIcon(String itemName) {
-    final lower = itemName.toLowerCase();
-    if (lower.contains('boot') || lower.contains('sprint') || lower.contains('speed')) return Icons.directions_run;
-    if (lower.contains('drain') || lower.contains('heal') || lower.contains('hp') || lower.contains('vital')) return Icons.favorite;
-    if (lower.contains('damage') || lower.contains('dps') || lower.contains('fire') || lower.contains('flak')) return Icons.local_fire_department;
-    if (lower.contains('shield') || lower.contains('armor') || lower.contains('defense')) return Icons.shield;
-    if (lower.contains('storm') || lower.contains('lightning') || lower.contains('tesla') || lower.contains('electric')) return Icons.flash_on;
-    if (lower.contains('stealth') || lower.contains('shadow') || lower.contains('smoke')) return Icons.visibility_off;
-    if (lower.contains('droid') || lower.contains('turret') || lower.contains('sentri')) return Icons.smart_toy;
-    if (lower.contains('bullet') || lower.contains('gun') || lower.contains('rifle')) return Icons.sports_handball;
-    if (lower.contains('ring') || lower.contains('crystal') || lower.contains('orb')) return Icons.stars;
-    if (lower.contains('poison') || lower.contains('venom')) return Icons.warning;
-    if (lower.contains('blade') || lower.contains('dagger') || lower.contains('knife')) return Icons.content_cut;
-    if (lower.contains('scope') || lower.contains('zoom')) return Icons.zoom_in;
-    return Icons.inventory_2;
-  }
+
 }

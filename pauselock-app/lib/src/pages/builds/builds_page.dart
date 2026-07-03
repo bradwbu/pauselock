@@ -19,6 +19,7 @@ class _BuildsPageState extends State<BuildsPage> {
   List<dynamic> _featuredBuilds = [];
   List<dynamic> _allBuilds = [];
   bool _isLoading = true;
+  Map<int, Map<String, dynamic>> _itemsCache = {};
 
   @override
   void initState() {
@@ -28,6 +29,7 @@ class _BuildsPageState extends State<BuildsPage> {
 
   Future<void> _loadBuilds() async {
     setState(() => _isLoading = true);
+    _itemsCache = await PauselockClient.getAllItems();
     final featured = await PauselockClient.getFeaturedBuilds(limit: 3);
     final builds = await PauselockClient.getBuilds(filter: {
       'sortBy': _sortBy,
@@ -39,6 +41,22 @@ class _BuildsPageState extends State<BuildsPage> {
       _allBuilds = builds ?? [];
       _isLoading = false;
     });
+  }
+
+  List<Map<String, dynamic>> _resolveItems(List<dynamic> itemIds) {
+    return itemIds.map((id) {
+      final intId = int.tryParse('$id') ?? 0;
+      return _itemsCache[intId] ?? {'id': intId, 'name': 'Item $id', 'slotType': '', 'imageUrl': ''};
+    }).toList();
+  }
+
+  IconData _itemIcon(Map<String, dynamic>? item) {
+    if (item == null) return Icons.inventory_2;
+    final slot = (item['slotType'] ?? '').toString();
+    if (slot == 'weapon') return Icons.gps_fixed;
+    if (slot == 'spirit') return Icons.auto_awesome;
+    if (slot == 'vitality') return Icons.favorite;
+    return Icons.inventory_2;
   }
 
   List<dynamic> get _filteredBuilds {
@@ -107,7 +125,7 @@ class _BuildsPageState extends State<BuildsPage> {
                                 formatCompactNumber(build['upvotes']),
                                 '${build['matchesPlayed'] ?? 0}',
                                 build['isFeatured'] ?? false,
-                                build['items'] ?? [],
+                                build['itemIds'] ?? [],
                               ))
                           .toList(),
                     ),
@@ -214,66 +232,79 @@ class _BuildsPageState extends State<BuildsPage> {
               itemCount: _featuredBuilds.length,
               itemBuilder: (context, index) {
                 final build = _featuredBuilds[index];
-                return InkWell(
-                  onTap: () => context.go('/build/${build['id']}'),
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    width: 180,
-                    margin: const EdgeInsets.only(right: 12),
-                    decoration: AppTheme.glassDecoration,
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          height: 80,
-                          decoration: BoxDecoration(
-                            gradient: AppTheme.primaryGradient,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Center(
-                              child: Icon(Icons.build,
-                                  color: Colors.white, size: 40)),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(build['buildName'] ?? 'Unknown',
-                            style: Theme.of(context).textTheme.titleSmall),
-                        Text('By ${build['author'] ?? 'Unknown'}',
-                            style: Theme.of(context).textTheme.bodySmall),
-                        const SizedBox(height: 4),
-                        Wrap(
-                          spacing: 4,
-                          runSpacing: 4,
-                          children: ((build['items'] as List<dynamic>?) ?? [])
-                              .take(4)
-                              .map<Widget>((item) => Icon(
-                                    _getItemIcon(item.toString()),
-                                    size: 14,
-                                    color: AppTheme.accentColor,
-                                  ))
-                              .toList(),
-                        ),
-                        const Spacer(),
-                        Row(
+                    return InkWell(
+                      onTap: () => context.go('/build/${build['id']}'),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        width: 180,
+                        margin: const EdgeInsets.only(right: 12),
+                        decoration: AppTheme.glassDecoration,
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.thumb_up,
-                                size: 14, color: AppTheme.successColor),
-                            const SizedBox(width: 4),
-                            Text(formatCompactNumber(build['upvotes']),
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(color: AppTheme.successColor)),
-                            const Spacer(),
-                            Text(
-                                '${formatCompactNumber(build['matchesPlayed'])} weekly',
+                            Container(
+                              height: 80,
+                              decoration: BoxDecoration(
+                                gradient: AppTheme.primaryGradient,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Center(
+                                  child: Icon(Icons.build,
+                                      color: Colors.white, size: 40)),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(build['buildName'] ?? 'Unknown',
+                                style: Theme.of(context).textTheme.titleSmall),
+                            Text('By ${build['author'] ?? 'Unknown'}',
                                 style: Theme.of(context).textTheme.bodySmall),
+                            const SizedBox(height: 4),
+                            Wrap(
+                              spacing: 4,
+                              runSpacing: 4,
+                              children: () {
+                                final ids = (build['itemIds'] as List<dynamic>?) ?? [];
+                                return ids.take(4).map<Widget>((id) {
+                                  final intId = int.tryParse('$id') ?? 0;
+                                  final item = _itemsCache[intId];
+                                  if (item != null && item['imageUrl']!.toString().isNotEmpty) {
+                                    return Image.network(
+                                      item['imageUrl'],
+                                      width: 18, height: 18,
+                                      errorBuilder: (_, __, ___) => Icon(
+                                        _itemIcon(item), size: 14,
+                                        color: AppTheme.accentColor,
+                                      ),
+                                    );
+                                  }
+                                  return Icon(
+                                    _itemIcon(item), size: 14,
+                                    color: AppTheme.accentColor,
+                                  );
+                                }).toList();
+                              }(),
+                            ),
+                            const Spacer(),
+                            Row(
+                              children: [
+                                const Icon(Icons.thumb_up,
+                                    size: 14, color: AppTheme.successColor),
+                                const SizedBox(width: 4),
+                                Text(formatCompactNumber(build['upvotes']),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(color: AppTheme.successColor)),
+                                const Spacer(),
+                                Text(
+                                    '${formatCompactNumber(build['matchesPlayed'])} weekly',
+                                    style: Theme.of(context).textTheme.bodySmall),
+                              ],
+                            ),
                           ],
                         ),
-                      ],
-                    ),
-                  ),
-                );
+                      ),
+                    );
               },
             ),
           ),
@@ -283,7 +314,8 @@ class _BuildsPageState extends State<BuildsPage> {
   }
 
   Widget _buildBuildCard(BuildContext context, int id, String name, String hero,
-      String favorites, String matches, bool isFeatured, List<dynamic> items) {
+      String favorites, String matches, bool isFeatured, List<dynamic> itemIds) {
+    final resolvedItems = _resolveItems(itemIds);
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: AppTheme.glassDecoration,
@@ -330,7 +362,7 @@ class _BuildsPageState extends State<BuildsPage> {
             Wrap(
               spacing: 4,
               runSpacing: 4,
-              children: items.take(3).map((itemName) {
+              children: resolvedItems.take(3).map((item) {
                 return Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
@@ -340,14 +372,15 @@ class _BuildsPageState extends State<BuildsPage> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        _getItemIcon(itemName.toString()),
-                        size: 12,
-                        color: AppTheme.primaryColor,
-                      ),
+                      if (item['imageUrl'] != null && item['imageUrl'].toString().isNotEmpty)
+                        Image.network(item['imageUrl'], width: 12, height: 12,
+                          errorBuilder: (_, __, ___) => Icon(_itemIcon(item), size: 12, color: AppTheme.primaryColor),
+                        )
+                      else
+                        Icon(_itemIcon(item), size: 12, color: AppTheme.primaryColor),
                       const SizedBox(width: 4),
                       Text(
-                        itemName.toString(),
+                        item['name']?.toString() ?? '',
                         style: const TextStyle(
                           fontSize: 10,
                           color: AppTheme.textSecondary,
@@ -376,20 +409,5 @@ class _BuildsPageState extends State<BuildsPage> {
     );
   }
 
-  IconData _getItemIcon(String itemName) {
-    final lower = itemName.toLowerCase();
-    if (lower.contains('boot') || lower.contains('sprint') || lower.contains('speed')) return Icons.directions_run;
-    if (lower.contains('drain') || lower.contains('heal') || lower.contains('hp') || lower.contains('vital')) return Icons.favorite;
-    if (lower.contains('damage') || lower.contains('dps') || lower.contains('fire') || lower.contains('flak')) return Icons.local_fire_department;
-    if (lower.contains('shield') || lower.contains('armor') || lower.contains('defense')) return Icons.shield;
-    if (lower.contains('storm') || lower.contains('lightning') || lower.contains('tesla') || lower.contains('electric')) return Icons.flash_on;
-    if (lower.contains('stealth') || lower.contains('shadow') || lower.contains('smoke')) return Icons.visibility_off;
-    if (lower.contains('droid') || lower.contains('turret') || lower.contains('sentri')) return Icons.smart_toy;
-    if (lower.contains('bullet') || lower.contains('gun') || lower.contains('rifle')) return Icons.sports_handball;
-    if (lower.contains('ring') || lower.contains('crystal') || lower.contains('orb')) return Icons.stars;
-    if (lower.contains('poison') || lower.contains('venom')) return Icons.warning;
-    if (lower.contains('blade') || lower.contains('dagger') || lower.contains('knife')) return Icons.content_cut;
-    if (lower.contains('scope') || lower.contains('zoom')) return Icons.zoom_in;
-    return Icons.inventory_2;
-  }
+
 }
