@@ -18,6 +18,7 @@ class _HomePageState extends State<HomePage> {
   List<dynamic> _metaHeroes = [];
   Map<String, dynamic>? _globalStats;
   bool _isLoading = true;
+  String? _error;
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -33,15 +34,26 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _loadData() async {
-    final builds = await PauselockClient.getFeaturedBuilds(limit: 5);
-    final heroes = await PauselockClient.getAllHeroes(filter: {'limit': 6});
-    final globalStats = await PauselockClient.getGlobalStats();
     setState(() {
-      _featuredBuilds = builds ?? [];
-      _metaHeroes = heroes ?? [];
-      _globalStats = globalStats;
-      _isLoading = false;
+      _isLoading = true;
+      _error = null;
     });
+    try {
+      final builds = await PauselockClient.getFeaturedBuilds(limit: 5);
+      final heroes = await PauselockClient.getAllHeroes(filter: {'limit': 6});
+      final globalStats = await PauselockClient.getGlobalStats();
+      setState(() {
+        _featuredBuilds = builds ?? [];
+        _metaHeroes = heroes ?? [];
+        _globalStats = globalStats;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = 'Failed to load data. Please try again.';
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -52,15 +64,17 @@ class _HomePageState extends State<HomePage> {
         child: SafeArea(
           child: RefreshIndicator(
             onRefresh: _loadData,
-            child: CustomScrollView(
-              slivers: [
-                SliverToBoxAdapter(child: _buildHeroSection(context)),
-                SliverToBoxAdapter(child: _buildStatsOverview(context)),
-                SliverToBoxAdapter(child: _buildFeaturedBuilds(context)),
-                SliverToBoxAdapter(child: _buildMetaHeroes(context)),
-                SliverToBoxAdapter(child: _buildFooter(context)),
-              ],
-            ),
+            child: _error != null && !_isLoading
+                ? _buildErrorState()
+                : CustomScrollView(
+                    slivers: [
+                      SliverToBoxAdapter(child: _buildHeroSection(context)),
+                      SliverToBoxAdapter(child: _buildStatsOverview(context)),
+                      SliverToBoxAdapter(child: _buildFeaturedBuilds(context)),
+                      SliverToBoxAdapter(child: _buildMetaHeroes(context)),
+                      SliverToBoxAdapter(child: _buildFooter(context)),
+                    ],
+                  ),
           ),
         ),
       ),
@@ -400,6 +414,33 @@ class _HomePageState extends State<HomePage> {
         child: Text(
           '© 2026 Pauselock - Unofficial Deadlock Stats Tracker',
           style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.cloud_off, color: AppTheme.errorColor, size: 64),
+            const SizedBox(height: 16),
+            Text('Connection Error',
+                style: Theme.of(context).textTheme.headlineSmall),
+            const SizedBox(height: 8),
+            Text(_error ?? 'Something went wrong',
+                style: Theme.of(context).textTheme.bodyMedium,
+                textAlign: TextAlign.center),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _loadData,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+            ),
+          ],
         ),
       ),
     );

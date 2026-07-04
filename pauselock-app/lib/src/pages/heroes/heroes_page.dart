@@ -17,6 +17,7 @@ class _HeroesPageState extends State<HeroesPage> {
   final List<String> _roles = ['All', 'Assassin', 'Brawler', 'Marksman', 'Mystic'];
   List<dynamic> _heroes = [];
   bool _isLoading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -25,12 +26,22 @@ class _HeroesPageState extends State<HeroesPage> {
   }
 
   Future<void> _loadHeroes() async {
-    setState(() => _isLoading = true);
-    final heroes = await PauselockClient.getAllHeroes();
     setState(() {
-      _heroes = heroes ?? [];
-      _isLoading = false;
+      _isLoading = true;
+      _error = null;
     });
+    try {
+      final heroes = await PauselockClient.getAllHeroes();
+      setState(() {
+        _heroes = heroes ?? [];
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = 'Failed to load heroes. Please try again.';
+        _isLoading = false;
+      });
+    }
   }
 
   List<dynamic> get _filteredHeroes {
@@ -78,6 +89,10 @@ class _HeroesPageState extends State<HeroesPage> {
                     delegate: SliverChildListDelegate(List.generate(9, (index) => _buildLoadingCard())),
                   ),
                 )
+              else if (_error != null)
+                SliverToBoxAdapter(child: _buildErrorState())
+              else if (_filteredHeroes.isEmpty)
+                SliverToBoxAdapter(child: _buildEmptyState())
               else
                 SliverPadding(
                   padding: const EdgeInsets.all(16),
@@ -114,6 +129,52 @@ class _HeroesPageState extends State<HeroesPage> {
       highlightColor: AppTheme.surfaceColor,
       child: Container(
         decoration: AppTheme.glassDecoration,
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Container(
+      padding: const EdgeInsets.all(48),
+      child: Column(
+        children: [
+          const Icon(Icons.error_outline, color: AppTheme.errorColor, size: 48),
+          const SizedBox(height: 16),
+          Text('Failed to load heroes',
+              style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Text(_error ?? 'Something went wrong',
+              style: Theme.of(context).textTheme.bodySmall,
+              textAlign: TextAlign.center),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: _loadHeroes,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Container(
+      padding: const EdgeInsets.all(48),
+      child: Column(
+        children: [
+          const Icon(Icons.shield_outlined, color: AppTheme.textSecondary, size: 48),
+          const SizedBox(height: 16),
+          Text('No heroes found',
+              style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Text(
+            _selectedRole == 'All'
+                ? 'No hero data available.'
+                : 'No heroes match the "$_selectedRole" filter.',
+            style: Theme.of(context).textTheme.bodySmall,
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }

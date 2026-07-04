@@ -19,6 +19,7 @@ class _BuildsPageState extends State<BuildsPage> {
   List<dynamic> _featuredBuilds = [];
   List<dynamic> _allBuilds = [];
   bool _isLoading = true;
+  String? _error;
   Map<int, Map<String, dynamic>> _itemsCache = {};
 
   @override
@@ -28,19 +29,29 @@ class _BuildsPageState extends State<BuildsPage> {
   }
 
   Future<void> _loadBuilds() async {
-    setState(() => _isLoading = true);
-    _itemsCache = await PauselockClient.getAllItems();
-    final featured = await PauselockClient.getFeaturedBuilds(limit: 3);
-    final builds = await PauselockClient.getBuilds(filter: {
-      'sortBy': _sortBy,
-      'featuredOnly': _featuredOnly,
-      if (widget.heroId != null) 'heroId': widget.heroId,
-    });
     setState(() {
-      _featuredBuilds = featured ?? [];
-      _allBuilds = builds ?? [];
-      _isLoading = false;
+      _isLoading = true;
+      _error = null;
     });
+    try {
+      _itemsCache = await PauselockClient.getAllItems();
+      final featured = await PauselockClient.getFeaturedBuilds(limit: 3);
+      final builds = await PauselockClient.getBuilds(filter: {
+        'sortBy': _sortBy,
+        'featuredOnly': _featuredOnly,
+        if (widget.heroId != null) 'heroId': widget.heroId,
+      });
+      setState(() {
+        _featuredBuilds = featured ?? [];
+        _allBuilds = builds ?? [];
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = 'Failed to load builds. Pull down to retry.';
+        _isLoading = false;
+      });
+    }
   }
 
   List<Map<String, dynamic>> _resolveItems(
@@ -130,6 +141,10 @@ class _BuildsPageState extends State<BuildsPage> {
                       _buildLoadingCard(),
                     ]),
                   )
+                else if (_error != null)
+                  SliverToBoxAdapter(child: _buildErrorState())
+                else if (_filteredBuilds.isEmpty)
+                  SliverToBoxAdapter(child: _buildEmptyState())
                 else
                   SliverList(
                     delegate: SliverChildListDelegate(
@@ -180,6 +195,52 @@ class _BuildsPageState extends State<BuildsPage> {
           color: AppTheme.surfaceColor,
           borderRadius: BorderRadius.circular(12),
         ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Container(
+      padding: const EdgeInsets.all(48),
+      child: Column(
+        children: [
+          const Icon(Icons.error_outline, color: AppTheme.errorColor, size: 48),
+          const SizedBox(height: 16),
+          Text('Failed to load builds',
+              style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Text(_error ?? 'Pull down to retry',
+              style: Theme.of(context).textTheme.bodySmall,
+              textAlign: TextAlign.center),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: _loadBuilds,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Container(
+      padding: const EdgeInsets.all(48),
+      child: Column(
+        children: [
+          const Icon(Icons.build_circle_outlined, color: AppTheme.textSecondary, size: 48),
+          const SizedBox(height: 16),
+          Text('No builds found',
+              style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Text(
+            _featuredOnly
+                ? 'No featured builds available. Try disabling the filter.'
+                : 'No builds match your current filters.',
+            style: Theme.of(context).textTheme.bodySmall,
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }
