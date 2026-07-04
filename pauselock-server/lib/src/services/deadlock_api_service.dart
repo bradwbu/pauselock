@@ -171,21 +171,33 @@ class DeadlockApiService {
   }
 
   Future<Map<String, dynamic>?> getBuildById(int buildId) async {
-    final responses = await Future.wait([
-      _getList(_apiBaseUrl, '/v1/builds', {
-        'build_id': '$buildId',
-        'limit': '1',
-      }),
-      getHeroes(),
-    ]);
-    final direct = responses[0];
-    final heroNames = {
-      for (final hero in responses[1]) _asInt(hero['id']): '${hero['name']}',
-    };
-    final build = direct.map((b) => _mapBuild(b, heroNames)).firstOrNull;
-    if (build == null) return null;
-    final enriched = await _enrichBuilds([build]);
-    return enriched.isEmpty ? build : enriched.first;
+    try {
+      final responses = await Future.wait([
+        _getList(_apiBaseUrl, '/v1/builds', {
+          'build_id': '$buildId',
+          'limit': '1',
+        }),
+        getHeroes(),
+      ]);
+      final direct = responses[0];
+      final heroNames = {
+        for (final hero in responses[1]) _asInt(hero['id']): '${hero['name']}',
+      };
+      final build = direct.map((b) => _mapBuild(b, heroNames)).firstOrNull;
+      if (build != null) {
+        final enriched = await _enrichBuilds([build]);
+        return enriched.isEmpty ? build : enriched.first;
+      }
+    } catch (error) {
+      stderr.writeln('Deadlock build API fallback: $error');
+    }
+    final fallback = BuildEndpoint.seedBuilds
+        .where((build) => build.id == buildId)
+        .map((build) => build.toJson())
+        .firstOrNull;
+    if (fallback == null) return null;
+    final enriched = await _enrichBuilds([fallback]);
+    return enriched.isEmpty ? fallback : enriched.first;
   }
 
   Future<List<Map<String, dynamic>>> _enrichBuilds(List<Map<String, dynamic>> builds) async {
