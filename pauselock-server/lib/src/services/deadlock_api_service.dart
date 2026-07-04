@@ -612,7 +612,6 @@ class DeadlockApiService {
         (hero['images'] as Map?)?.cast<String, dynamic>() ?? const {};
     final startingStats =
         (hero['starting_stats'] as Map?)?.cast<String, dynamic>() ?? const {};
-    final weaponPower = _statValue(startingStats['weapon_power']);
     final maxHealth = _statValue(startingStats['max_health']);
     final stamina = _statValue(startingStats['stamina']);
     final bulletDamage = _statValue(startingStats['bullet_damage']);

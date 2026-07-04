@@ -590,7 +590,7 @@ class _HeroesPageState extends State<HeroesPage> {
                 fontWeight: FontWeight.bold,
                 fontSize: 10)),
         Text(label,
-            style: TextStyle(
+            style: const TextStyle(
                 color: AppTheme.textSecondary,
                 fontSize: 8)),
       ],

@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:pauselock_server/src/services/deadlock_api_service.dart';
 import 'package:pauselock_server/src/services/auth_service.dart';
-import 'package:pauselock_server/src/generated/protocol.dart';
 
 final _deadlockApi = DeadlockApiService();
 final _auth = AuthService.instance;

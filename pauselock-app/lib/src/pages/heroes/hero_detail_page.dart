@@ -84,8 +84,6 @@ class _HeroDetailPageState extends State<HeroDetailPage> {
               }
 
               final heroName = heroData['name'] ?? 'Unknown Hero';
-              final roles =
-                  (heroData['roles'] as List<dynamic>?)?.join(' / ') ?? 'Unknown';
               final winRate = asDouble(heroData['winRate']);
               final pickRate = asDouble(heroData['pickRate']);
               final banRate = asDouble(heroData['banRate']);
@@ -295,7 +293,7 @@ class _HeroDetailPageState extends State<HeroDetailPage> {
                         const Icon(Icons.star,
                             color: Colors.amber, size: 14),
                         const SizedBox(width: 4),
-                        Text('${complexity}/4',
+                        Text('$complexity/4',
                             style: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
@@ -408,12 +406,12 @@ class _HeroDetailPageState extends State<HeroDetailPage> {
             const SizedBox(height: 16),
             _buildStatGrid([
               _StatData('$health', 'Health', Colors.red),
-              _StatData('${bulletDmg}', 'Bullet Dmg', Colors.orange),
+              _StatData('$bulletDmg', 'Bullet Dmg', Colors.orange),
               _StatData('$lightMelee', 'Light Melee', Colors.amber),
               _StatData('$heavyMelee', 'Heavy Melee', Colors.deepOrange),
-              _StatData('${moveSpeed.toStringAsFixed(1)}', 'Move Speed', Colors.cyan),
-              _StatData('${sprintSpeed.toStringAsFixed(1)}', 'Sprint', Colors.teal),
-              _StatData('${healthRegen.toStringAsFixed(1)}', 'Regen/s', Colors.green),
+              _StatData(moveSpeed.toStringAsFixed(1), 'Move Speed', Colors.cyan),
+              _StatData(sprintSpeed.toStringAsFixed(1), 'Sprint', Colors.teal),
+              _StatData(healthRegen.toStringAsFixed(1), 'Regen/s', Colors.green),
               _StatData('${(bulletArmor * 100).toStringAsFixed(0)}%', 'Bullet Armor', Colors.blue),
               _StatData('${(techArmor * 100).toStringAsFixed(0)}%', 'Tech Armor', Colors.purple),
             ]),
