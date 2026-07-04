@@ -126,13 +126,13 @@ class _HeroesPageState extends State<HeroesPage> {
                   sliver: SliverGrid(
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      childAspectRatio: 0.85,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
+                      crossAxisCount: 4,
+                      childAspectRatio: 0.8,
+                      crossAxisSpacing: 8,
+                      mainAxisSpacing: 8,
                     ),
                     delegate: SliverChildListDelegate(
-                        List.generate(9, (index) => _buildLoadingCard())),
+                        List.generate(12, (index) => _buildLoadingCard())),
                   ),
                 )
               else if (_error != null)
@@ -147,10 +147,10 @@ class _HeroesPageState extends State<HeroesPage> {
                   sliver: SliverGrid(
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      childAspectRatio: 0.85,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
+                      crossAxisCount: 4,
+                      childAspectRatio: 0.8,
+                      crossAxisSpacing: 8,
+                      mainAxisSpacing: 8,
                     ),
                     delegate: SliverChildListDelegate(
                       _filteredHeroes
@@ -180,10 +180,10 @@ class _HeroesPageState extends State<HeroesPage> {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         sliver: SliverGrid(
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            childAspectRatio: 0.85,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
+            crossAxisCount: 4,
+            childAspectRatio: 0.8,
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
           ),
           delegate: SliverChildListDelegate(
             heroes.map((hero) => _buildHeroCard(context, hero)).toList(),
@@ -236,10 +236,10 @@ class _HeroesPageState extends State<HeroesPage> {
   Widget _buildTierLegend(String tier) {
     final descriptions = {
       'S+': 'Overpowered',
-      'S': 'Strong',
-      'A': 'Balanced',
-      'B': 'Below Average',
-      'C': 'Weak',
+      'S': 'Meta Defining',
+      'A': 'Strong Picks',
+      'B': 'Viable',
+      'C': 'Situational',
     };
     return Text(descriptions[tier] ?? '',
         style: Theme.of(context)
@@ -250,7 +250,7 @@ class _HeroesPageState extends State<HeroesPage> {
 
   Widget _buildFilterBar(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 2),
       child: Column(
         children: [
           SizedBox(
@@ -288,7 +288,7 @@ class _HeroesPageState extends State<HeroesPage> {
               },
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           SizedBox(
             height: 32,
             child: ListView(
@@ -459,48 +459,48 @@ class _HeroesPageState extends State<HeroesPage> {
                   if (iconUrl.isNotEmpty)
                     Center(
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(6),
                         child: Image.network(
                           iconUrl,
                           fit: BoxFit.cover,
-                          width: 72,
-                          height: 72,
+                          width: 52,
+                          height: 52,
                           errorBuilder: (_, __, ___) =>
-                              const Icon(Icons.person, color: Colors.white54, size: 48),
+                              const Icon(Icons.person, color: Colors.white54, size: 32),
                         ),
                       ),
                     )
                   else
                     const Center(
                       child: Icon(Icons.person,
-                          color: Colors.white54, size: 48),
+                          color: Colors.white54, size: 32),
                     ),
                   Positioned(
-                    top: 6,
-                    left: 6,
+                    top: 4,
+                    left: 4,
                     child: Container(
                       padding:
-                          const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                       decoration: BoxDecoration(
                         color: _tierColor(tier),
-                        borderRadius: BorderRadius.circular(4),
+                        borderRadius: BorderRadius.circular(3),
                       ),
                       child: Text(tier,
                           style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
-                              fontSize: 11)),
+                              fontSize: 9)),
                     ),
                   ),
                   Positioned(
-                    top: 6,
-                    right: 6,
+                    top: 4,
+                    right: 4,
                     child: Row(
                       children: List.generate(
                         complexity,
                         (i) => Container(
-                          width: 6,
-                          height: 6,
+                          width: 5,
+                          height: 5,
                           margin: const EdgeInsets.only(left: 1),
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
@@ -515,8 +515,8 @@ class _HeroesPageState extends State<HeroesPage> {
             ),
             Expanded(
               flex: 4,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 4, 8, 6),
+              child:               Padding(
+                padding: const EdgeInsets.fromLTRB(6, 2, 6, 4),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -527,17 +527,17 @@ class _HeroesPageState extends State<HeroesPage> {
                             style: Theme.of(context)
                                 .textTheme
                                 .titleSmall
-                                ?.copyWith(fontSize: 12),
+                                ?.copyWith(fontSize: 11),
                             textAlign: TextAlign.center,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 1),
                         Text(heroType.toString().toUpperCase(),
                             style: Theme.of(context)
                                 .textTheme
                                 .bodySmall
                                 ?.copyWith(
-                                    fontSize: 9, letterSpacing: 0.5),
+                                    fontSize: 8, letterSpacing: 0.5),
                             maxLines: 1),
                       ],
                     ),
@@ -562,12 +562,12 @@ class _HeroesPageState extends State<HeroesPage> {
                                 AppTheme.accentColor),
                           ],
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 1),
                         Text('${_formatNumber(matchesPlayed)} matches',
                             style: Theme.of(context)
                                 .textTheme
                                 .bodySmall
-                                ?.copyWith(fontSize: 8)),
+                                ?.copyWith(fontSize: 7)),
                       ],
                     ),
                   ],
@@ -588,11 +588,11 @@ class _HeroesPageState extends State<HeroesPage> {
             style: TextStyle(
                 color: color,
                 fontWeight: FontWeight.bold,
-                fontSize: 10)),
+                fontSize: 9)),
         Text(label,
             style: const TextStyle(
                 color: AppTheme.textSecondary,
-                fontSize: 8)),
+                fontSize: 7)),
       ],
     );
   }

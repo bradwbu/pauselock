@@ -235,7 +235,7 @@ class _HeroDetailPageState extends State<HeroDetailPage> {
             Stack(
               children: [
                 Container(
-                  height: 200,
+                  height: 220,
                   width: double.infinity,
                   decoration: BoxDecoration(
                     borderRadius:
@@ -254,7 +254,8 @@ class _HeroDetailPageState extends State<HeroDetailPage> {
                           borderRadius: const BorderRadius.vertical(
                               top: Radius.circular(16)),
                           child: Image.network(bannerUrl,
-                              fit: BoxFit.cover,
+                              fit: BoxFit.contain,
+                              width: double.infinity,
                               errorBuilder: (_, __, ___) =>
                                   _buildFallbackHeroImage(iconUrl)),
                         )
@@ -346,7 +347,7 @@ class _HeroDetailPageState extends State<HeroDetailPage> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
         decoration: AppTheme.glassDecoration,
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
@@ -369,10 +370,10 @@ class _HeroDetailPageState extends State<HeroDetailPage> {
       children: [
         Text(value,
             style: TextStyle(
-                color: color, fontSize: 16, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 4),
+                color: color, fontSize: 14, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 2),
         Text(label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 10)),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 9)),
       ],
     );
   }
@@ -382,7 +383,7 @@ class _HeroDetailPageState extends State<HeroDetailPage> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Container(
         decoration: AppTheme.glassDecoration,
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Text(description,
             style: Theme.of(context).textTheme.bodyMedium),
       ),
@@ -397,13 +398,13 @@ class _HeroDetailPageState extends State<HeroDetailPage> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Container(
         decoration: AppTheme.glassDecoration,
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('BASE STATS',
-                style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 16),
+                style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: 10),
             _buildStatGrid([
               _StatData('$health', 'Health', Colors.red),
               _StatData('$bulletDmg', 'Bullet Dmg', Colors.orange),
@@ -427,18 +428,18 @@ class _HeroDetailPageState extends State<HeroDetailPage> {
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
-        childAspectRatio: 2.2,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
+        childAspectRatio: 2.8,
+        crossAxisSpacing: 6,
+        mainAxisSpacing: 6,
       ),
       itemCount: stats.length,
       itemBuilder: (context, index) {
         final stat = stats[index];
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
           decoration: BoxDecoration(
             color: stat.color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(6),
             border: Border.all(
                 color: stat.color.withValues(alpha: 0.3), width: 1),
           ),
@@ -450,12 +451,12 @@ class _HeroDetailPageState extends State<HeroDetailPage> {
                   style: TextStyle(
                       color: stat.color,
                       fontWeight: FontWeight.bold,
-                      fontSize: 13)),
+                      fontSize: 11)),
               Text(stat.label,
                   style: Theme.of(context)
                       .textTheme
                       .bodySmall
-                      ?.copyWith(fontSize: 9)),
+                      ?.copyWith(fontSize: 8)),
             ],
           ),
         );
@@ -469,35 +470,35 @@ class _HeroDetailPageState extends State<HeroDetailPage> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Container(
         decoration: AppTheme.glassDecoration,
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('ABILITIES', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 12),
+            Text('ABILITIES', style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: 8),
             ...abilities.map((ability) {
               final abilityMap = ability is Map
                   ? ability
                   : {'name': ability.toString(), 'className': ''};
               final name = abilityMap['name'] ?? ability.toString();
               return Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.all(10),
                 decoration: AppTheme.glassDecorationSmall,
                 child: Row(
                   children: [
                     Container(
-                      width: 40,
-                      height: 40,
+                      width: 32,
+                      height: 32,
                       decoration: BoxDecoration(
                         color:
                             AppTheme.primaryColor.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(6),
                       ),
                       child: const Icon(Icons.flash_on,
-                          color: AppTheme.primaryColor, size: 20),
+                          color: AppTheme.primaryColor, size: 16),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Text(name,
                           style: Theme.of(context).textTheme.titleSmall),
@@ -528,7 +529,7 @@ class _HeroDetailPageState extends State<HeroDetailPage> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Container(
         decoration: AppTheme.glassDecoration,
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -536,7 +537,7 @@ class _HeroDetailPageState extends State<HeroDetailPage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('POPULAR BUILDS',
-                    style: Theme.of(context).textTheme.titleMedium),
+                    style: Theme.of(context).textTheme.titleSmall),
                 TextButton(
                     onPressed: () => context.go('/builds/${widget.heroId}'),
                     child: const Text('View All')),
