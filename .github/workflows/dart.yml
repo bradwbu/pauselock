@@ -77,11 +77,14 @@ jobs:
             git fetch --all --force
             git reset --hard origin/main
             
+            # Stop server before compiling (prevents "Text file busy" error)
+            sudo systemctl stop pauselock || true
+            
             # Build Backend
             cd pauselock-server
             dart pub get
             dart compile exe bin/server.dart -o pauselock_server
-            sudo systemctl restart pauselock
+            sudo systemctl start pauselock
             
             # Build Frontend
             cd ../pauselock-app
