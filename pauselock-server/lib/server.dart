@@ -311,7 +311,8 @@ List<dynamic> _applyTierOverrides(List<dynamic> heroes) {
 
 Future<Map<String, dynamic>> _readBody(HttpRequest request) async {
   try {
-    final body = await request.first;
+    final body = await request.fold<List<int>>(
+        <int>[], (prev, chunk) => prev..addAll(chunk));
     if (body.isEmpty) return {};
     return Map<String, dynamic>.from(jsonDecode(utf8.decode(body)));
   } catch (_) {
