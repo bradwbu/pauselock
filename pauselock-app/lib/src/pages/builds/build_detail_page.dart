@@ -64,8 +64,18 @@ class _BuildDetailPageState extends State<BuildDetailPage> {
                 return _buildError(context);
               }
 
-              final itemIds = (build['itemIds'] as List<dynamic>?) ?? const [];
+              final items = (build['itemIds'] as List<dynamic>?) ?? const [];
               final tags = (build['tags'] as List<dynamic>?) ?? const [];
+              final totalCost = items.fold<int>(0, (sum, item) {
+                if (item is Map) return sum + (item['cost'] ?? 0) as int;
+                return sum;
+              });
+
+              final weaponItems = _filterBySlot(items, 'weapon');
+              final spiritItems = _filterBySlot(items, 'spirit');
+              final vitalityItems = _filterBySlot(items, 'vitality');
+              final otherItems = _filterOther(items, ['weapon', 'spirit', 'vitality']);
+
               return CustomScrollView(
                 slivers: [
                   SliverAppBar(
@@ -96,10 +106,19 @@ class _BuildDetailPageState extends State<BuildDetailPage> {
                     ],
                   ),
                   SliverToBoxAdapter(child: _buildHeader(context, build)),
+                  SliverToBoxAdapter(child: _buildStats(context, build, items.length, totalCost)),
                   SliverToBoxAdapter(child: _buildDescription(context, build)),
-                  SliverToBoxAdapter(child: _buildItemGrid(context, itemIds)),
+                  if (weaponItems.isNotEmpty)
+                    SliverToBoxAdapter(child: _buildSlotSection(context, 'Weapon', Icons.gps_fixed, AppTheme.primaryColor, weaponItems)),
+                  if (spiritItems.isNotEmpty)
+                    SliverToBoxAdapter(child: _buildSlotSection(context, 'Spirit', Icons.auto_awesome, AppTheme.secondaryColor, spiritItems)),
+                  if (vitalityItems.isNotEmpty)
+                    SliverToBoxAdapter(child: _buildSlotSection(context, 'Vitality', Icons.favorite, AppTheme.successColor, vitalityItems)),
+                  if (otherItems.isNotEmpty)
+                    SliverToBoxAdapter(child: _buildSlotSection(context, 'Other', Icons.category, AppTheme.accentColor, otherItems)),
                   if (tags.isNotEmpty)
                     SliverToBoxAdapter(child: _buildTags(context, tags)),
+                  const SliverToBoxAdapter(child: SizedBox(height: 32)),
                 ],
               );
             },
@@ -107,6 +126,21 @@ class _BuildDetailPageState extends State<BuildDetailPage> {
         ),
       ),
     );
+  }
+
+  List<Map<String, dynamic>> _filterBySlot(List<dynamic> items, String slotType) {
+    return items.whereType<Map<String, dynamic>>().where((item) {
+      final slot = '${item['slotType'] ?? ''}'.toLowerCase();
+      return slot == slotType;
+    }).toList();
+  }
+
+  List<Map<String, dynamic>> _filterOther(List<dynamic> items, List<String> excludeSlots) {
+    final excludeSet = excludeSlots.map((s) => s.toLowerCase()).toSet();
+    return items.whereType<Map<String, dynamic>>().where((item) {
+      final slot = '${item['slotType'] ?? ''}'.toLowerCase();
+      return slot.isNotEmpty && !excludeSet.contains(slot);
+    }).toList();
   }
 
   Widget _buildHeader(BuildContext context, Map<String, dynamic> build) {
@@ -130,7 +164,7 @@ class _BuildDetailPageState extends State<BuildDetailPage> {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(6),
                     child: Image.network(
-                      build['heroIconUrl'] ?? 'https://assets-bucket.deadlock-api.com/assets-api-res/images/heroes/inferno_card.png',
+                      build['heroIconUrl'] ?? '',
                       fit: BoxFit.cover,
                       errorBuilder: (c, e, s) => const Icon(Icons.person, color: Colors.white54),
                     ),
@@ -150,26 +184,40 @@ class _BuildDetailPageState extends State<BuildDetailPage> {
                     ],
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                _metric(context, Icons.star,
-                    formatCompactNumber(build['upvotes']), 'favorites'),
-                const SizedBox(width: 16),
-                _metric(context, Icons.trending_up,
-                    formatCompactNumber(build['matchesPlayed']), 'weekly'),
-                const SizedBox(width: 16),
-                _metric(
-                    context,
-                    Icons.inventory_2,
-                    '${((build['itemIds'] as List?) ?? const []).length}',
-                    'items'),
+                if (build['heroId'] != null)
+                  TextButton.icon(
+                    onPressed: () => context.go('/heroes/${build['heroId']}'),
+                    icon: const Icon(Icons.open_in_new, size: 16),
+                    label: const Text('View Hero'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppTheme.accentColor,
+                    ),
+                  ),
               ],
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildStats(BuildContext context, Map<String, dynamic> build, int itemCount, int totalCost) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          _metric(context, Icons.star,
+              formatCompactNumber(build['upvotes']), 'favorites'),
+          const SizedBox(width: 12),
+          _metric(context, Icons.trending_up,
+              formatCompactNumber(build['matchesPlayed']), 'weekly'),
+          const SizedBox(width: 12),
+          _metric(context, Icons.percent,
+              formatPercent(build['winRate']), 'win rate'),
+          const SizedBox(width: 12),
+          _metric(context, Icons.attach_money,
+              formatCompactNumber(totalCost), 'total cost'),
+        ],
       ),
     );
   }
@@ -183,11 +231,11 @@ class _BuildDetailPageState extends State<BuildDetailPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: AppTheme.primaryColor, size: 20),
-            const SizedBox(height: 8),
+            Icon(icon, color: AppTheme.primaryColor, size: 18),
+            const SizedBox(height: 6),
             Text(value,
                 style: const TextStyle(
-                    color: AppTheme.textPrimary, fontWeight: FontWeight.bold)),
+                    color: AppTheme.textPrimary, fontWeight: FontWeight.bold, fontSize: 14)),
             Text(label, style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
@@ -199,7 +247,7 @@ class _BuildDetailPageState extends State<BuildDetailPage> {
     final description = '${build['description'] ?? ''}'.trim();
     if (description.isEmpty) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Container(
         decoration: AppTheme.glassDecoration,
         padding: const EdgeInsets.all(16),
@@ -208,69 +256,142 @@ class _BuildDetailPageState extends State<BuildDetailPage> {
     );
   }
 
-  Widget _buildItemGrid(BuildContext context, List<dynamic> itemIds) {
+  Widget _buildSlotSection(
+      BuildContext context, String slotName, IconData slotIcon, Color slotColor, List<Map<String, dynamic>> items) {
+    final totalSlotCost = items.fold<int>(0, (sum, item) => sum + (item['cost'] ?? 0) as int);
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('BUILD ITEMS', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 12),
+          Row(
+            children: [
+              Icon(slotIcon, color: slotColor, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                '$slotName (${items.length})',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(color: slotColor),
+              ),
+              const Spacer(),
+              Text(
+                '${formatCompactNumber(totalSlotCost)} souls',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: slotColor.withValues(alpha: 0.7)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
           Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: itemIds.take(48).map((itemData) {
-              final id = itemData is Map ? itemData['id'] : itemData;
-              final name = itemData is Map ? itemData['name'] : 'Item $id';
-              
-              return Container(
-                width: 160,
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppTheme.surfaceColorLight,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: AppTheme.surfaceColor,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
-                        child: Image.network(
-                          itemData is Map ? itemData['image'] : 'https://assets-bucket.deadlock-api.com/assets-api-res/images/abilities/weapon_damage.png',
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stack) => const Icon(Icons.category, size: 16, color: AppTheme.secondaryColor),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        name,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 2,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }).toList(),
+            spacing: 10,
+            runSpacing: 10,
+            children: items.map((item) => _buildItemCard(context, item, slotColor)).toList(),
           ),
         ],
       ),
     );
   }
 
+  Widget _buildItemCard(BuildContext context, Map<String, dynamic> item, Color slotColor) {
+    final name = item['name']?.toString() ?? 'Unknown Item';
+    final imageUrl = item['imageUrl']?.toString() ?? '';
+    final cost = item['cost'] ?? 0;
+    final tier = item['tier'] ?? 1;
+
+    final tierColor = switch (tier) {
+      1 => Colors.grey,
+      2 => AppTheme.primaryColor,
+      3 => AppTheme.secondaryColor,
+      4 => AppTheme.accentColor,
+      _ => Colors.grey,
+    };
+
+    return Container(
+      width: 170,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceColorLight,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: tierColor.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppTheme.surfaceColor,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: tierColor.withValues(alpha: 0.5), width: 1),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(7),
+              child: imageUrl.isNotEmpty
+                  ? Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stack) => Icon(Icons.category, size: 20, color: tierColor),
+                    )
+                  : Icon(Icons.category, size: 20, color: tierColor),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  name,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    _tierBadge(tier, tierColor),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${formatCompactNumber(cost)}s',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppTheme.textSecondary,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tierBadge(int tier, Color color) {
+    final labels = {1: 'I', 2: 'II', 3: 'III', 4: 'IV'};
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        labels[tier] ?? '$tier',
+        style: TextStyle(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
   Widget _buildTags(BuildContext context, List<dynamic> tags) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Wrap(
         spacing: 8,
         runSpacing: 8,
@@ -278,6 +399,9 @@ class _BuildDetailPageState extends State<BuildDetailPage> {
           label: Text('$tag'),
           backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
           side: BorderSide(color: AppTheme.primaryColor.withValues(alpha: 0.3)),
+          labelStyle: const TextStyle(color: AppTheme.textPrimary, fontSize: 12),
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          visualDensity: VisualDensity.compact,
         )).toList(),
       ),
     );
@@ -292,6 +416,9 @@ class _BuildDetailPageState extends State<BuildDetailPage> {
           const SizedBox(height: 16),
           Text('Failed to load build',
               style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Text('Build #${widget.buildId} not found',
+              style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 16),
           ElevatedButton(
               onPressed: () => context.go('/builds'),
