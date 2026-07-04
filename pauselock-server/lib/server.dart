@@ -19,10 +19,8 @@ Future<void> run(List<String> args) async {
 }
 
 Future<void> _handleRequest(HttpRequest request) async {
-  // Read body BEFORE touching response headers (Dart HttpServer quirk)
   final bodyBytes = await request.fold<List<int>>(
       <int>[], (prev, chunk) => prev..addAll(chunk));
-  stdout.writeln('BODY_DEBUG: method=${request.method} path=${request.uri.path} bodyLen=${bodyBytes.length}');
   final parsedBody = bodyBytes.isEmpty
       ? <String, dynamic>{}
       : Map<String, dynamic>.from(jsonDecode(utf8.decode(bodyBytes)));
