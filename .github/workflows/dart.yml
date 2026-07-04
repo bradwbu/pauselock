@@ -73,7 +73,8 @@ jobs:
             source ~/.bashrc || true
 
             cd /opt/pauselock
-            git fetch --all
+            find .git/objects -type f -size 0 -delete 2>/dev/null || true
+            git fetch --all --force
             git reset --hard origin/main
             
             # Build Backend
