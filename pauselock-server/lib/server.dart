@@ -33,6 +33,7 @@ Future<void> _handleRequest(HttpRequest request) async {
   try {
     final path = request.uri.path;
     final query = request.uri.queryParameters;
+    stdout.writeln('DEBUG: ${request.method} ${request.uri}');
     final authHeader = request.headers.value('Authorization');
     final tokenStr = authHeader?.replaceFirst('Bearer ', '');
     final currentUser = _auth.validateToken(tokenStr);
@@ -313,9 +314,11 @@ Future<Map<String, dynamic>> _readBody(HttpRequest request) async {
   try {
     final body = await request.fold<List<int>>(
         <int>[], (prev, chunk) => prev..addAll(chunk));
+    stdout.writeln('DEBUG _readBody: length=${body.length}, content=${utf8.decode(body)}');
     if (body.isEmpty) return {};
     return Map<String, dynamic>.from(jsonDecode(utf8.decode(body)));
-  } catch (_) {
+  } catch (e) {
+    stdout.writeln('DEBUG _readBody error: $e');
     return {};
   }
 }
