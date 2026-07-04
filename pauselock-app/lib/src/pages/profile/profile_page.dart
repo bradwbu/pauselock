@@ -17,6 +17,7 @@ class _ProfilePageState extends State<ProfilePage> {
   List<Map<String, dynamic>> _favoriteHeroes = [];
   List<Map<String, dynamic>> _favoriteBuilds = [];
   bool _isLoading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -25,94 +26,63 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _loadProfile() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
     
-    _accountId = LocalStorageService.getAccountId();
-    
-    if (_accountId != null) {
-      _playerStats = await PauselockClient.getPlayerStats(_accountId!);
-    } else {
-      _playerStats = null;
-    }
+    try {
+      _accountId = LocalStorageService.getAccountId();
+      
+      if (_accountId != null) {
+        _playerStats = await PauselockClient.getPlayerStats(_accountId!);
+      } else {
+        _playerStats = null;
+      }
 
-    final heroIds = LocalStorageService.getFavoriteHeroes();
-    final buildIds = LocalStorageService.getFavoriteBuilds();
+      final heroIds = LocalStorageService.getFavoriteHeroes();
+      final buildIds = LocalStorageService.getFavoriteBuilds();
 
-    final List<Map<String, dynamic>> heroes = [];
-    for (final id in heroIds) {
-      final hero = await PauselockClient.getHeroById(id);
-      if (hero != null) heroes.add(hero);
-    }
+      final List<Map<String, dynamic>> heroes = [];
+      for (final id in heroIds) {
+        final hero = await PauselockClient.getHeroById(id);
+        if (hero != null) heroes.add(hero);
+      }
 
-    final List<Map<String, dynamic>> builds = [];
-    for (final id in buildIds) {
-      final build = await PauselockClient.getBuildById(id);
-      if (build != null) builds.add(build);
-    }
+      final List<Map<String, dynamic>> builds = [];
+      for (final id in buildIds) {
+        final build = await PauselockClient.getBuildById(id);
+        if (build != null) builds.add(build);
+      }
 
-    if (mounted) {
-      setState(() {
-        _favoriteHeroes = heroes;
-        _favoriteBuilds = builds;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _favoriteHeroes = heroes;
+          _favoriteBuilds = builds;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = 'Failed to load profile. Please try again.';
+          _isLoading = false;
+        });
+      }
     }
   }
 
   void _linkAccount() async {
     final controller = TextEditingController();
-    final result = await showDialog<String>(
+    final result = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.surfaceColor,
-        title: const Text('Link Steam Account', style: TextStyle(color: Colors.white)),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            hintText: 'Enter Steam ID or exact name',
-            hintStyle: TextStyle(color: Colors.white54),
-          ),
-          style: const TextStyle(color: Colors.white),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, controller.text),
-            child: const Text('Link'),
-          ),
-        ],
-      ),
+      builder: (context) => _LinkAccountDialog(controller: controller),
     );
 
-    if (result != null && result.isNotEmpty) {
+    if (result != null && result['accountId'] != null) {
       setState(() => _isLoading = true);
-      final query = result.trim();
-      final numericId = int.tryParse(query);
-      
-      int? foundId;
-      if (numericId != null) {
-        foundId = numericId;
-      } else {
-        final players = await PauselockClient.searchPlayers(query);
-        if (players != null && players.isNotEmpty) {
-          foundId = players.first['accountId'];
-        }
-      }
-
-      if (foundId != null) {
-        await LocalStorageService.setAccountId(foundId);
-        await _loadProfile();
-      } else {
-        setState(() => _isLoading = false);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Account not found.')),
-          );
-        }
-      }
+      await LocalStorageService.setAccountId(result['accountId']);
+      await _loadProfile();
     }
   }
 
@@ -129,7 +99,9 @@ class _ProfilePageState extends State<ProfilePage> {
         child: SafeArea(
           child: _isLoading 
             ? const Center(child: CircularProgressIndicator())
-            : CustomScrollView(
+            : _error != null
+                ? _buildErrorState()
+                : CustomScrollView(
                 slivers: [
                   SliverAppBar(
                     backgroundColor: Colors.transparent,
@@ -397,6 +369,218 @@ class _ProfilePageState extends State<ProfilePage> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, color: AppTheme.errorColor, size: 64),
+            const SizedBox(height: 16),
+            Text('Failed to load profile',
+                style: Theme.of(context).textTheme.headlineSmall),
+            const SizedBox(height: 8),
+            Text(_error ?? 'Something went wrong',
+                style: Theme.of(context).textTheme.bodyMedium,
+                textAlign: TextAlign.center),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _loadProfile,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LinkAccountDialog extends StatefulWidget {
+  final TextEditingController controller;
+  const _LinkAccountDialog({required this.controller});
+
+  @override
+  State<_LinkAccountDialog> createState() => _LinkAccountDialogState();
+}
+
+class _LinkAccountDialogState extends State<_LinkAccountDialog> {
+  bool _isSearching = false;
+  List<dynamic> _searchResults = [];
+  String? _error;
+
+  Future<void> _searchPlayers(String query) async {
+    if (query.trim().isEmpty) {
+      setState(() {
+        _searchResults = [];
+        _error = null;
+      });
+      return;
+    }
+
+    final numericId = int.tryParse(query.trim());
+    if (numericId != null) {
+      setState(() {
+        _searchResults = [
+          {'accountId': numericId, 'playerName': 'Steam ID: $numericId', 'avatarUrl': null}
+        ];
+        _error = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _isSearching = true;
+      _error = null;
+    });
+
+    try {
+      final results = await PauselockClient.searchPlayers(query.trim());
+      setState(() {
+        _isSearching = false;
+        _searchResults = results ?? [];
+      });
+    } catch (e) {
+      setState(() {
+        _isSearching = false;
+        _error = 'Search failed. Try the Steam ID directly.';
+        _searchResults = [];
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: AppTheme.surfaceColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        width: 420,
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.6,
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.link, color: AppTheme.primaryColor),
+                const SizedBox(width: 8),
+                Text('Link Steam Account',
+                    style: Theme.of(context).textTheme.titleLarge),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Enter a Steam ID or search by player name',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: widget.controller,
+              autofocus: true,
+              decoration: InputDecoration(
+                hintText: 'Search player or enter Steam ID...',
+                prefixIcon: const Icon(Icons.search, color: AppTheme.textSecondary),
+                suffixIcon: _isSearching
+                    ? const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: SizedBox(
+                          width: 20, height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    : null,
+              ),
+              style: const TextStyle(color: AppTheme.textPrimary),
+              onChanged: (value) => _searchPlayers(value),
+              onSubmitted: (value) => _searchPlayers(value),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 8),
+              Text(_error!, style: const TextStyle(color: AppTheme.errorColor, fontSize: 12)),
+            ],
+            const SizedBox(height: 12),
+            if (_searchResults.isNotEmpty)
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _searchResults.length,
+                  itemBuilder: (context, index) {
+                    final player = _searchResults[index];
+                    return ListTile(
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                      leading: CircleAvatar(
+                        radius: 16,
+                        backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.2),
+                        backgroundImage: player['avatarUrl'] != null
+                            ? NetworkImage(player['avatarUrl'])
+                            : null,
+                        child: player['avatarUrl'] == null
+                            ? const Icon(Icons.person, size: 16, color: AppTheme.primaryColor)
+                            : null,
+                      ),
+                      title: Text(
+                        player['playerName'] ?? 'Unknown',
+                        style: const TextStyle(color: AppTheme.textPrimary, fontSize: 14),
+                      ),
+                      subtitle: Text(
+                        'Steam ID: ${player['accountId']}',
+                        style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11),
+                      ),
+                      trailing: const Icon(Icons.chevron_right, size: 18, color: Colors.white54),
+                      onTap: () => Navigator.pop(context, player),
+                    );
+                  },
+                ),
+              )
+            else if (!_isSearching && widget.controller.text.trim().isNotEmpty)
+              Container(
+                padding: const EdgeInsets.all(16),
+                child: Center(
+                  child: Text(
+                    'Type to search or press Enter with a Steam ID',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+              ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: () {
+                    final text = widget.controller.text.trim();
+                    if (text.isEmpty) return;
+                    final numericId = int.tryParse(text);
+                    if (numericId != null) {
+                      Navigator.pop(context, {
+                        'accountId': numericId,
+                        'playerName': 'Steam ID: $numericId',
+                      });
+                    } else if (_searchResults.isNotEmpty) {
+                      Navigator.pop(context, _searchResults.first);
+                    }
+                  },
+                  child: const Text('Link'),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

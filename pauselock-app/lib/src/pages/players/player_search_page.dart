@@ -16,6 +16,7 @@ class _PlayerSearchPageState extends State<PlayerSearchPage> {
   late final TextEditingController _searchController;
   List<dynamic>? _results;
   bool _isLoading = false;
+  String? _error;
 
   @override
   void initState() {
@@ -39,14 +40,21 @@ class _PlayerSearchPageState extends State<PlayerSearchPage> {
     setState(() {
       _isLoading = true;
       _results = null;
+      _error = null;
     });
 
-    final results = await PauselockClient.searchPlayers(query);
-
-    setState(() {
-      _isLoading = false;
-      _results = results;
-    });
+    try {
+      final results = await PauselockClient.searchPlayers(query);
+      setState(() {
+        _isLoading = false;
+        _results = results;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _error = 'Search failed. Please try again.';
+      });
+    }
   }
 
   @override
@@ -138,6 +146,28 @@ class _PlayerSearchPageState extends State<PlayerSearchPage> {
       );
     }
 
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, color: AppTheme.errorColor, size: 48),
+              const SizedBox(height: 16),
+              Text(_error!, style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: _performSearch,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     if (_results == null) {
       return const Center(
         child: Text(
@@ -148,10 +178,24 @@ class _PlayerSearchPageState extends State<PlayerSearchPage> {
     }
 
     if (_results!.isEmpty) {
-      return const Center(
-        child: Text(
-          'No players found.',
-          style: TextStyle(color: AppTheme.textSecondary),
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.person_search, color: AppTheme.textSecondary, size: 48),
+              const SizedBox(height: 16),
+              Text('No players found',
+                  style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 8),
+              Text(
+                'Try a different name or check the spelling.',
+                style: Theme.of(context).textTheme.bodySmall,
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       );
     }
