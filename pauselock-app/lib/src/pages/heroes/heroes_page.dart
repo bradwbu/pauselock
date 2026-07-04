@@ -54,20 +54,25 @@ class _HeroesPageState extends State<HeroesPage> {
     var list = _heroes;
     if (_selectedRole != 'All') {
       list = list.where((h) {
-        final heroType = (h['heroType'] ?? h['primaryAttribute'] ?? '').toString();
+        final heroType =
+            (h['heroType'] ?? h['primaryAttribute'] ?? '').toString();
         return heroType.toLowerCase() == _selectedRole.toLowerCase();
       }).toList();
     }
     switch (_sortBy) {
       case 'winRate':
-        list.sort((a, b) => (b['winRate'] ?? 0).compareTo(a['winRate'] ?? 0));
+        list.sort(
+            (a, b) => (b['winRate'] ?? 0).compareTo(a['winRate'] ?? 0));
       case 'pickRate':
-        list.sort((a, b) => (b['pickRate'] ?? 0).compareTo(a['pickRate'] ?? 0));
+        list.sort(
+            (a, b) => (b['pickRate'] ?? 0).compareTo(a['pickRate'] ?? 0));
       case 'banRate':
-        list.sort((a, b) => (b['banRate'] ?? 0).compareTo(a['banRate'] ?? 0));
+        list.sort(
+            (a, b) => (b['banRate'] ?? 0).compareTo(a['banRate'] ?? 0));
       case 'name':
-        list.sort((a, b) =>
-            (a['name'] ?? '').toString().compareTo((b['name'] ?? '').toString()));
+        list.sort((a, b) => (a['name'] ?? '')
+            .toString()
+            .compareTo((b['name'] ?? '').toString()));
       default:
         list = _sortByTiers(list);
     }
@@ -97,6 +102,7 @@ class _HeroesPageState extends State<HeroesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF0D1117),
       body: Container(
         decoration: BoxDecoration(gradient: AppTheme.backgroundGradient),
         child: SafeArea(
@@ -110,7 +116,8 @@ class _HeroesPageState extends State<HeroesPage> {
                       AppTheme.primaryGradient.createShader(bounds),
                   child: const Text('HEROES',
                       style: TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.bold)),
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold)),
                 ),
                 actions: [
                   IconButton(
@@ -126,8 +133,8 @@ class _HeroesPageState extends State<HeroesPage> {
                   sliver: SliverGrid(
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 4,
-                      childAspectRatio: 0.8,
+                      crossAxisCount: 6,
+                      childAspectRatio: 0.75,
                       crossAxisSpacing: 8,
                       mainAxisSpacing: 8,
                     ),
@@ -142,22 +149,8 @@ class _HeroesPageState extends State<HeroesPage> {
               else if (_sortBy == 'tier')
                 ..._buildTierSections()
               else
-                SliverPadding(
-                  padding: const EdgeInsets.all(16),
-                  sliver: SliverGrid(
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 4,
-                      childAspectRatio: 0.8,
-                      crossAxisSpacing: 8,
-                      mainAxisSpacing: 8,
-                    ),
-                    delegate: SliverChildListDelegate(
-                      _filteredHeroes
-                          .map((hero) => _buildHeroCard(context, hero))
-                          .toList(),
-                    ),
-                  ),
+                SliverToBoxAdapter(
+                  child: _buildHeroWrap(_filteredHeroes),
                 ),
             ],
           ),
@@ -176,21 +169,10 @@ class _HeroesPageState extends State<HeroesPage> {
       sections.add(SliverToBoxAdapter(
         child: _buildTierHeader(tier, heroes.length),
       ));
-      sections.add(SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        sliver: SliverGrid(
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 4,
-            childAspectRatio: 0.8,
-            crossAxisSpacing: 8,
-            mainAxisSpacing: 8,
-          ),
-          delegate: SliverChildListDelegate(
-            heroes.map((hero) => _buildHeroCard(context, hero)).toList(),
-          ),
-        ),
+      sections.add(SliverToBoxAdapter(
+        child: _buildHeroWrap(heroes),
       ));
-      sections.add(const SliverToBoxAdapter(child: SizedBox(height: 8)));
+      sections.add(const SliverToBoxAdapter(child: SizedBox(height: 4)));
     }
     return sections;
   }
@@ -199,41 +181,10 @@ class _HeroesPageState extends State<HeroesPage> {
     final tierColors = {
       'S+': [const Color(0xFFFF4466), const Color(0xFFFF6B8A)],
       'S': [const Color(0xFFFF9900), const Color(0xFFFFBB33)],
-      'A': [const Color(0xFF00D4FF), const Color(0xFF00AAFF)],
-      'B': [const Color(0xFF00FF88), const Color(0xFF00CC66)],
-      'C': [const Color(0xFFA0AABF), const Color(0xFF8890AA)],
+      'A': [const Color(0xFF6B5CE7), const Color(0xFF8B7BF7)],
+      'B': [const Color(0xFF3B82F6), const Color(0xFF60A5FA)],
+      'C': [const Color(0xFF6B7280), const Color(0xFF9CA3AF)],
     };
-    final colors = tierColors[tier] ?? [Colors.grey, Colors.grey];
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(colors: colors),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(tier,
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14)),
-          ),
-          const SizedBox(width: 8),
-          Text('$count heroes',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: AppTheme.textSecondary)),
-          const Spacer(),
-          _buildTierLegend(tier),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTierLegend(String tier) {
     final descriptions = {
       'S+': 'Overpowered',
       'S': 'Meta Defining',
@@ -241,20 +192,51 @@ class _HeroesPageState extends State<HeroesPage> {
       'B': 'Viable',
       'C': 'Situational',
     };
-    return Text(descriptions[tier] ?? '',
-        style: Theme.of(context)
-            .textTheme
-            .bodySmall
-            ?.copyWith(color: AppTheme.textSecondary, fontSize: 11));
+    final colors = tierColors[tier] ?? [Colors.grey, Colors.grey];
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 0),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: colors),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      child: Text(
+        '$tier Tier - ${descriptions[tier] ?? ''}',
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 13,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeroWrap(List<dynamic> heroes) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 0),
+      decoration: BoxDecoration(
+        color: const Color(0xFF161B22),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(8)),
+      ),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 14,
+        children: heroes
+            .map((hero) => _buildHeroCard(context, hero))
+            .toList(),
+      ),
+    );
   }
 
   Widget _buildFilterBar(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 2),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
       child: Column(
         children: [
           SizedBox(
-            height: 38,
+            height: 36,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               itemCount: _roles.length,
@@ -265,11 +247,12 @@ class _HeroesPageState extends State<HeroesPage> {
                   onTap: () => setState(() => _selectedRole = role),
                   child: Container(
                     margin: const EdgeInsets.only(right: 6),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 8),
                     decoration: BoxDecoration(
                       gradient: isSelected ? AppTheme.primaryGradient : null,
-                      color: isSelected ? null : AppTheme.surfaceColorLight,
+                      color:
+                          isSelected ? null : AppTheme.surfaceColorLight,
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Center(
@@ -278,8 +261,9 @@ class _HeroesPageState extends State<HeroesPage> {
                             color: isSelected
                                 ? Colors.white
                                 : AppTheme.textSecondary,
-                            fontWeight:
-                                isSelected ? FontWeight.bold : FontWeight.normal,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
                             fontSize: 12,
                           )),
                     ),
@@ -290,7 +274,7 @@ class _HeroesPageState extends State<HeroesPage> {
           ),
           const SizedBox(height: 4),
           SizedBox(
-            height: 32,
+            height: 30,
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: [
@@ -313,7 +297,8 @@ class _HeroesPageState extends State<HeroesPage> {
       onTap: () => setState(() => _sortBy = value),
       child: Container(
         margin: const EdgeInsets.only(right: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
           color: isSelected
               ? AppTheme.accentColor.withValues(alpha: 0.2)
@@ -329,8 +314,11 @@ class _HeroesPageState extends State<HeroesPage> {
         child: Center(
           child: Text(label,
               style: TextStyle(
-                color: isSelected ? AppTheme.accentColor : AppTheme.textSecondary,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected
+                    ? AppTheme.accentColor
+                    : AppTheme.textSecondary,
+                fontWeight:
+                    isSelected ? FontWeight.bold : FontWeight.normal,
                 fontSize: 11,
               )),
         ),
@@ -343,7 +331,10 @@ class _HeroesPageState extends State<HeroesPage> {
       baseColor: AppTheme.surfaceColorLight,
       highlightColor: AppTheme.surfaceColor,
       child: Container(
-        decoration: AppTheme.glassDecoration,
+        decoration: BoxDecoration(
+          color: AppTheme.surfaceColorLight,
+          borderRadius: BorderRadius.circular(8),
+        ),
       ),
     );
   }
@@ -378,8 +369,8 @@ class _HeroesPageState extends State<HeroesPage> {
       padding: const EdgeInsets.all(48),
       child: Column(
         children: [
-          const Icon(Icons.shield_outlined,
-              color: AppTheme.textSecondary, size: 48),
+                    const Icon(Icons.shield_outlined,
+                        color: AppTheme.textSecondary, size: 48),
           const SizedBox(height: 16),
           Text('No heroes found',
               style: Theme.of(context).textTheme.titleMedium),
@@ -396,18 +387,18 @@ class _HeroesPageState extends State<HeroesPage> {
     );
   }
 
-  Color _tierColor(String tier) {
+  Color _complexityColor(String tier) {
     switch (tier) {
       case 'S+':
-        return const Color(0xFFFF4466);
+        return const Color(0xFF00E676);
       case 'S':
-        return const Color(0xFFFF9900);
+        return const Color(0xFF00E676);
       case 'A':
-        return const Color(0xFF00D4FF);
+        return const Color(0xFF00E676);
       case 'B':
-        return const Color(0xFF00FF88);
+        return const Color(0xFF00E676);
       case 'C':
-        return const Color(0xFFA0AABF);
+        return const Color(0xFFFF5252);
       default:
         return AppTheme.textSecondary;
     }
@@ -417,189 +408,64 @@ class _HeroesPageState extends State<HeroesPage> {
     final name = hero['name'] ?? 'Unknown';
     final heroId = hero['id'] ?? 0;
     final iconUrl = hero['iconUrl'] ?? '';
-    final winRate = (hero['winRate'] ?? 0).toDouble();
-    final pickRate = (hero['pickRate'] ?? 0).toDouble();
-    final banRate = (hero['banRate'] ?? 0).toDouble();
-    final tier = hero['tier'] ?? 'C';
-    final heroType = hero['heroType'] ?? hero['primaryAttribute'] ?? '';
-    final matchesPlayed = hero['matchesPlayed'] ?? 0;
-    final complexity = hero['complexity'] ?? 1;
-
     return GestureDetector(
       onTap: () => context.go('/heroes/$heroId'),
-      child: Container(
-        decoration: AppTheme.glassDecoration.copyWith(
-          border: Border.all(
-            color: _tierColor(tier).withValues(alpha: 0.4),
-            width: 1,
-          ),
-        ),
+      child: SizedBox(
+        width: 80,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              flex: 5,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius:
-                          const BorderRadius.vertical(top: Radius.circular(16)),
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          _tierColor(tier).withValues(alpha: 0.15),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
+            Stack(
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF21262D),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  if (iconUrl.isNotEmpty)
-                    Center(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
-                        child: Image.network(
-                          iconUrl,
-                          fit: BoxFit.cover,
-                          width: 52,
-                          height: 52,
-                          errorBuilder: (_, __, ___) =>
-                              const Icon(Icons.person, color: Colors.white54, size: 32),
-                        ),
-                      ),
-                    )
-                  else
-                    const Center(
-                      child: Icon(Icons.person,
-                          color: Colors.white54, size: 32),
-                    ),
-                  Positioned(
-                    top: 4,
-                    left: 4,
-                    child: Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: _tierColor(tier),
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                      child: Text(tier,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 9)),
-                    ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: iconUrl.isNotEmpty
+                        ? Image.network(
+                            iconUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) =>
+                                const Icon(Icons.person,
+                                    color: Colors.white54, size: 40),
+                          )
+                        : const Icon(Icons.person,
+                            color: Colors.white54, size: 40),
                   ),
-                  Positioned(
-                    top: 4,
-                    right: 4,
-                    child: Row(
-                      children: List.generate(
-                        complexity,
-                        (i) => Container(
-                          width: 5,
-                          height: 5,
-                          margin: const EdgeInsets.only(left: 1),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: _tierColor(tier),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              flex: 4,
-              child:               Padding(
-                padding: const EdgeInsets.fromLTRB(6, 2, 6, 4),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      children: [
-                        Text(name,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleSmall
-                                ?.copyWith(fontSize: 11),
-                            textAlign: TextAlign.center,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis),
-                        const SizedBox(height: 1),
-                        Text(heroType.toString().toUpperCase(),
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(
-                                    fontSize: 8, letterSpacing: 0.5),
-                            maxLines: 1),
-                      ],
-                    ),
-                    Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            _buildMiniStat(
-                                '${winRate.toStringAsFixed(1)}%',
-                                'WR',
-                                winRate >= 50
-                                    ? AppTheme.successColor
-                                    : AppTheme.errorColor),
-                            _buildMiniStat(
-                                '${pickRate.toStringAsFixed(1)}%',
-                                'PR',
-                                AppTheme.primaryColor),
-                            _buildMiniStat(
-                                '${banRate.toStringAsFixed(1)}%',
-                                'BR',
-                                AppTheme.accentColor),
-                          ],
-                        ),
-                        const SizedBox(height: 1),
-                        Text('${_formatNumber(matchesPlayed)} matches',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(fontSize: 7)),
-                      ],
-                    ),
-                  ],
                 ),
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _complexityColor(hero['tier'] ?? 'C'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              name,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
               ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
       ),
     );
-  }
-
-  Widget _buildMiniStat(String value, String label, Color color) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(value,
-            style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.bold,
-                fontSize: 9)),
-        Text(label,
-            style: const TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 7)),
-      ],
-    );
-  }
-
-  String _formatNumber(int num) {
-    if (num >= 1000000) return '${(num / 1000000).toStringAsFixed(1)}M';
-    if (num >= 1000) return '${(num / 1000).toStringAsFixed(1)}K';
-    return '$num';
   }
 }
