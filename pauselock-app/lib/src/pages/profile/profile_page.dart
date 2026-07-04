@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pauselock_app/src/theme/app_theme.dart';
 import 'package:pauselock_app/src/services/local_storage_service.dart';
 import 'package:pauselock_app/src/services/pauselock_client.dart';
+import 'package:pauselock_app/src/services/auth_service.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -132,6 +133,10 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildProfileHeader(BuildContext context) {
+    final isLoggedIn = AuthService.isLoggedIn;
+    final username = AuthService.currentUser?['username'];
+    final role = AuthService.currentUser?['role'];
+
     return Container(
       padding: const EdgeInsets.all(24),
       child: Container(
@@ -167,9 +172,72 @@ class _ProfilePageState extends State<ProfilePage> {
             const SizedBox(height: 16),
             Text(_playerStats != null ? _playerStats!['playerName'] : 'Guest Player', style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: 4),
-            Text(_accountId != null ? 'Steam ID: $_accountId' : 'Not Linked', style: Theme.of(context).textTheme.bodySmall),
+            if (isLoggedIn) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(username ?? '', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppTheme.accentColor)),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: (role == 'admin' ? AppTheme.errorColor : AppTheme.primaryColor).withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(role?.toUpperCase() ?? 'USER',
+                        style: TextStyle(
+                            color: role == 'admin' ? AppTheme.errorColor : AppTheme.primaryColor,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+            ] else
+              Text(_accountId != null ? 'Steam ID: $_accountId' : 'Not Linked', style: Theme.of(context).textTheme.bodySmall),
             const SizedBox(height: 12),
-            if (_playerStats != null)
+            if (!isLoggedIn) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () => context.go('/auth'),
+                    icon: const Icon(Icons.login, size: 16),
+                    label: const Text('Sign In'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    ),
+                  ),
+                ],
+              ),
+            ] else ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (AuthService.isAdmin)
+                    TextButton.icon(
+                      onPressed: () => context.go('/admin'),
+                      icon: const Icon(Icons.admin_panel_settings, size: 16),
+                      label: const Text('Admin Panel'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppTheme.primaryColor,
+                      ),
+                    ),
+                  TextButton.icon(
+                    onPressed: () async {
+                      await AuthService.logout();
+                      setState(() {});
+                    },
+                    icon: const Icon(Icons.logout, size: 16),
+                    label: const Text('Sign Out'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppTheme.errorColor,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            if (_playerStats != null) ...[
+              const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -206,6 +274,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 ],
               ),
+            ],
           ],
         ),
       ),

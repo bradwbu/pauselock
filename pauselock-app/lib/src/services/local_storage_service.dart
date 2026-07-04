@@ -1,9 +1,12 @@
+import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LocalStorageService {
   static const String _keyAccountId = 'accountId';
   static const String _keyFavBuilds = 'favoriteBuilds';
   static const String _keyFavHeroes = 'favoriteHeroes';
+  static const String _keyAuthToken = 'authToken';
+  static const String _keyAuthUser = 'authUser';
 
   static late SharedPreferences _prefs;
 
@@ -60,5 +63,30 @@ class LocalStorageService {
     final list = getFavoriteHeroes();
     list.remove(heroId);
     await _prefs.setStringList(_keyFavHeroes, list.map((e) => e.toString()).toList());
+  }
+
+  static String? getAuthToken() => _prefs.getString(_keyAuthToken);
+
+  static Map<String, dynamic>? getAuthUser() {
+    final json = _prefs.getString(_keyAuthUser);
+    if (json == null) return null;
+    try {
+      return Map<String, dynamic>.from(jsonDecode(json));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<void> saveAuthToken(String token) async {
+    await _prefs.setString(_keyAuthToken, token);
+  }
+
+  static Future<void> saveAuthUser(Map<String, dynamic> user) async {
+    await _prefs.setString(_keyAuthUser, jsonEncode(user));
+  }
+
+  static Future<void> clearAuth() async {
+    await _prefs.remove(_keyAuthToken);
+    await _prefs.remove(_keyAuthUser);
   }
 }

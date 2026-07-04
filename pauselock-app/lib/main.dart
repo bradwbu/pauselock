@@ -13,9 +13,12 @@ import 'package:pauselock_app/src/pages/stats/leaderboard_page.dart';
 import 'package:pauselock_app/src/pages/stats/ranks_page.dart';
 import 'package:pauselock_app/src/pages/builds/pro_builds_page.dart';
 import 'package:pauselock_app/src/pages/players/player_search_page.dart';
+import 'package:pauselock_app/src/pages/auth/auth_page.dart';
+import 'package:pauselock_app/src/pages/admin/admin_dashboard_page.dart';
 import 'package:pauselock_app/src/widgets/main_layout.dart';
 import 'package:pauselock_app/src/services/pauselock_client.dart';
 import 'package:pauselock_app/src/services/local_storage_service.dart';
+import 'package:pauselock_app/src/services/auth_service.dart';
 
 import 'package:flutter/foundation.dart';
 
@@ -23,10 +26,10 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await LocalStorageService.initialize();
+  AuthService.initialize();
   
   String apiUrl = 'http://localhost:8080/';
   if (kIsWeb) {
-    // When running in browser, assume Nginx proxy /api/ on the same origin
     final baseUri = Uri.base;
     if (baseUri.host != 'localhost') {
       apiUrl = '${baseUri.origin}/api/';
@@ -40,6 +43,9 @@ void main() async {
 final _router = GoRouter(
   initialLocation: '/',
   routes: [
+    GoRoute(path: '/auth', builder: (context, state) => const AuthPage()),
+    GoRoute(
+        path: '/admin', builder: (context, state) => const AdminDashboardPage()),
     ShellRoute(
       builder: (context, state, child) => MainLayout(child: child),
       routes: [

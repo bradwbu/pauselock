@@ -65,40 +65,64 @@ class HeroData {
   String description;
   String iconUrl;
   String bannerPortraitUrl;
+  String backgroundUrl;
+  String verticalUrl;
   List<String> roles;
   String primaryAttribute;
+  String heroType;
+  int complexity;
+  String tier;
+  List<String> tags;
   int baseHealth;
   int baseMana;
   int baseDamageMin;
   int baseDamageMax;
+  int baseBulletDamage;
   double baseArmor;
+  double baseMoveSpeed;
+  double sprintSpeed;
+  double baseHealthRegen;
+  double bulletArmorReduction;
+  double techArmorReduction;
   double winRate;
   int pickRate;
   int banRate;
   int matchesPlayed;
   int popularity;
-  List<String> abilities;
+  List<Map<String, dynamic>> abilities;
 
   HeroData({
     this.id,
     required this.name,
     required this.fullName,
     required this.description,
-    required this.iconUrl,
-    required this.bannerPortraitUrl,
-    required this.roles,
-    required this.primaryAttribute,
-    required this.baseHealth,
-    required this.baseMana,
-    required this.baseDamageMin,
-    required this.baseDamageMax,
-    required this.baseArmor,
-    required this.winRate,
-    required this.pickRate,
-    required this.banRate,
-    required this.matchesPlayed,
-    required this.popularity,
-    required this.abilities,
+    this.iconUrl = '',
+    this.bannerPortraitUrl = '',
+    this.backgroundUrl = '',
+    this.verticalUrl = '',
+    this.roles = const [],
+    this.primaryAttribute = 'Unknown',
+    this.heroType = 'Unknown',
+    this.complexity = 1,
+    this.tier = 'C',
+    this.tags = const [],
+    this.baseHealth = 0,
+    this.baseMana = 0,
+    this.baseDamageMin = 0,
+    this.baseDamageMax = 0,
+    this.baseBulletDamage = 0,
+    this.baseArmor = 0,
+    this.baseMoveSpeed = 0,
+    this.sprintSpeed = 0,
+    this.baseHealthRegen = 0,
+    this.bulletArmorReduction = 0,
+    this.techArmorReduction = 0,
+    this.winRate = 0,
+    this.pickRate = 0,
+    this.banRate = 0,
+    this.matchesPlayed = 0,
+    this.popularity = 0,
+    this.abilities = const [],
   });
 
   Map<String, dynamic> toJson() => {
@@ -108,13 +132,25 @@ class HeroData {
         'description': description,
         'iconUrl': iconUrl,
         'bannerPortraitUrl': bannerPortraitUrl,
+        'backgroundUrl': backgroundUrl,
+        'verticalUrl': verticalUrl,
         'roles': roles,
         'primaryAttribute': primaryAttribute,
+        'heroType': heroType,
+        'complexity': complexity,
+        'tier': tier,
+        'tags': tags,
         'baseHealth': baseHealth,
         'baseMana': baseMana,
         'baseDamageMin': baseDamageMin,
         'baseDamageMax': baseDamageMax,
+        'baseBulletDamage': baseBulletDamage,
         'baseArmor': baseArmor,
+        'baseMoveSpeed': baseMoveSpeed,
+        'sprintSpeed': sprintSpeed,
+        'baseHealthRegen': baseHealthRegen,
+        'bulletArmorReduction': bulletArmorReduction,
+        'techArmorReduction': techArmorReduction,
         'winRate': winRate,
         'pickRate': pickRate,
         'banRate': banRate,
@@ -273,4 +309,91 @@ class BuildFilter {
     this.limit,
     this.featuredOnly,
   });
+}
+
+class UserAccount {
+  int id;
+  String email;
+  String username;
+  String passwordHash;
+  String role;
+  DateTime createdAt;
+  DateTime lastLogin;
+  bool isActive;
+
+  UserAccount({
+    required this.id,
+    required this.email,
+    required this.username,
+    required this.passwordHash,
+    this.role = 'user',
+    DateTime? createdAt,
+    DateTime? lastLogin,
+    this.isActive = true,
+  })  : createdAt = createdAt ?? DateTime.now(),
+        lastLogin = lastLogin ?? DateTime.now();
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'email': email,
+        'username': username,
+        'role': role,
+        'createdAt': createdAt.toIso8601String(),
+        'lastLogin': lastLogin.toIso8601String(),
+        'isActive': isActive,
+      };
+
+  Map<String, dynamic> toSafeJson() => {
+        'id': id,
+        'email': email,
+        'username': username,
+        'role': role,
+        'createdAt': createdAt.toIso8601String(),
+        'lastLogin': lastLogin.toIso8601String(),
+        'isActive': isActive,
+      };
+}
+
+class AuthToken {
+  String token;
+  int userId;
+  String role;
+  DateTime expiresAt;
+
+  AuthToken({
+    required this.token,
+    required this.userId,
+    required this.role,
+    DateTime? expiresAt,
+  }) : expiresAt = expiresAt ?? DateTime.now().add(const Duration(days: 7));
+
+  Map<String, dynamic> toJson() => {
+        'token': token,
+        'userId': userId,
+        'role': role,
+        'expiresAt': expiresAt.toIso8601String(),
+      };
+
+  bool get isExpired => DateTime.now().isAfter(expiresAt);
+}
+
+class HeroTierOverride {
+  int heroId;
+  String tier;
+  String? setBy;
+  DateTime? setAt;
+
+  HeroTierOverride({
+    required this.heroId,
+    required this.tier,
+    this.setBy,
+    this.setAt,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'heroId': heroId,
+        'tier': tier,
+        'setBy': setBy,
+        'setAt': setAt?.toIso8601String(),
+      };
 }

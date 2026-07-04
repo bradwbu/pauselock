@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pauselock_app/src/theme/app_theme.dart';
+import 'package:pauselock_app/src/services/auth_service.dart';
 
 class MainLayout extends StatelessWidget {
   final Widget child;
@@ -48,6 +49,10 @@ class MainLayout extends StatelessWidget {
   }
 
   Widget _buildSidebar(BuildContext context, {bool isMobile = false}) {
+    final isLoggedIn = AuthService.isLoggedIn;
+    final isAdmin = AuthService.isAdmin;
+    final username = AuthService.currentUser?['username'];
+
     return Container(
       width: isMobile ? double.infinity : 260,
       decoration: BoxDecoration(
@@ -98,8 +103,69 @@ class MainLayout extends StatelessWidget {
           const SizedBox(height: 20),
           const _SectionHeader(title: 'PERSONAL'),
           _NavItem(icon: Icons.person_rounded, label: 'My Profile', route: '/profile', currentPath: GoRouterState.of(context).uri.path),
+          if (isAdmin)
+            _NavItem(icon: Icons.admin_panel_settings, label: 'Admin Panel', route: '/admin', currentPath: GoRouterState.of(context).uri.path),
           
           const Spacer(),
+
+          if (isLoggedIn) ...[
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.surfaceColorLight,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 14,
+                    backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.2),
+                    child: Text(
+                      (username ?? 'U')[0].toUpperCase(),
+                      style: const TextStyle(
+                          color: AppTheme.primaryColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      username ?? 'User',
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () async {
+                      await AuthService.logout();
+                      if (context.mounted) context.go('/');
+                    },
+                    child: const Icon(Icons.logout, color: AppTheme.errorColor, size: 18),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+          ] else ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => context.go('/auth'),
+                  icon: const Icon(Icons.login, size: 16),
+                  label: const Text('Sign In'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+
           const Padding(
             padding: EdgeInsets.all(24.0),
             child: Text(

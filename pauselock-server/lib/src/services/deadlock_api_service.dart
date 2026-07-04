@@ -613,6 +613,19 @@ class DeadlockApiService {
     final startingStats =
         (hero['starting_stats'] as Map?)?.cast<String, dynamic>() ?? const {};
     final weaponPower = _statValue(startingStats['weapon_power']);
+    final maxHealth = _statValue(startingStats['max_health']);
+    final stamina = _statValue(startingStats['stamina']);
+    final bulletDamage = _statValue(startingStats['bullet_damage']);
+    final lightMelee = _statValue(startingStats['light_melee_damage']);
+    final heavyMelee = _statValue(startingStats['heavy_melee_damage']);
+    final baseMoveSpeed = _statValue(startingStats['max_move_speed']);
+    final sprintSpeed = _statValue(startingStats['sprint_speed']);
+    final baseHealthRegen = _statValue(startingStats['base_health_regen']);
+    final bulletArmor = _statValue(startingStats['bullet_armor_damage_reduction']);
+    final techArmor = _statValue(startingStats['tech_armor_damage_reduction']);
+    final heroType = '${hero['hero_type'] ?? ''}';
+    final complexity = _asInt(hero['complexity']);
+    final tags = (hero['tags'] as List? ?? const []).map((t) => '$t').toList();
 
     return {
       'id': id,
@@ -626,13 +639,26 @@ class DeadlockApiService {
           images['icon_image_small_webp'] ?? images['icon_image_small'] ?? '',
       'bannerPortraitUrl':
           images['icon_hero_card_webp'] ?? images['icon_hero_card'] ?? '',
+      'backgroundUrl':
+          images['background_image_webp'] ?? images['background_image'] ?? '',
+      'verticalUrl':
+          images['top_bar_vertical_image_webp'] ?? images['top_bar_vertical_image'] ?? '',
       'roles': _heroRoles(hero),
-      'primaryAttribute': hero['hero_type'] ?? 'Unknown',
-      'baseHealth': _statValue(startingStats['max_health']).round(),
-      'baseMana': _statValue(startingStats['stamina']).round(),
-      'baseDamageMin': weaponPower.round(),
-      'baseDamageMax': weaponPower.round(),
-      'baseArmor': _statValue(startingStats['bullet_armor_damage_reduction']),
+      'primaryAttribute': heroType,
+      'heroType': heroType,
+      'complexity': complexity,
+      'tags': tags,
+      'baseHealth': maxHealth.round(),
+      'baseMana': stamina.round(),
+      'baseDamageMin': lightMelee.round(),
+      'baseDamageMax': heavyMelee.round(),
+      'baseBulletDamage': bulletDamage.round(),
+      'baseArmor': bulletArmor,
+      'baseMoveSpeed': _round(baseMoveSpeed),
+      'sprintSpeed': _round(sprintSpeed),
+      'baseHealthRegen': _round(baseHealthRegen),
+      'bulletArmorReduction': bulletArmor,
+      'techArmorReduction': techArmor,
       'winRate': completed == 0 ? 0 : _round(wins * 100 / completed),
       'pickRate': totalMatches == 0 ? 0 : _round(matches * 100 / totalMatches),
       'banRate':
@@ -771,29 +797,54 @@ class DeadlockApiService {
     final roles = <String>{
       switch (heroType) {
         'marksman' => 'Carry',
-        'support' => 'Support',
-        'tank' => 'Tank',
+        'brawler' => 'Brawler',
         'assassin' => 'Assassin',
-        'mage' => 'Mage',
+        'mystic' => 'Mystic',
+        'tank' => 'Tank',
+        'support' => 'Support',
         _ => 'Carry',
       },
     };
     for (final tag in (hero['tags'] as List? ?? const [])) {
       final lower = '$tag'.toLowerCase();
       if (lower.contains('support')) roles.add('Support');
-      if (lower.contains('tank')) roles.add('Tank');
+      if (lower.contains('tank') || lower.contains('bruiser'))
+        roles.add('Tank');
       if (lower.contains('explosive') || lower.contains('magic'))
         roles.add('Mage');
     }
     return roles.toList();
   }
 
-  List<String> _heroAbilities(Map<String, dynamic> hero) {
+  List<Map<String, dynamic>> _heroAbilities(Map<String, dynamic> hero) {
     final items = (hero['items'] as Map?)?.cast<String, dynamic>() ?? const {};
-    return items.entries
-        .where((entry) => entry.key.startsWith('signature'))
-        .map((entry) => '${entry.value}'.replaceAll('_', ' '))
-        .toList();
+    final abilities = <Map<String, dynamic>>[];
+    for (final entry in items.entries) {
+      final key = entry.key;
+      if (!key.startsWith('signature')) continue;
+      final className = '${entry.value}';
+      abilities.add({
+        'key': key,
+        'className': className,
+        'name': _cleanAbilityName(className),
+      });
+    }
+    return abilities;
+  }
+
+  String _cleanAbilityName(String raw) {
+    if (raw.isEmpty) return raw;
+    var cleaned = raw;
+    for (final prefix in ['ability_', 'citadel_ability_', 'citadel_weapon_']) {
+      if (cleaned.startsWith(prefix)) {
+        cleaned = cleaned.substring(prefix.length);
+        break;
+      }
+    }
+    return cleaned.split('_').map((word) {
+      if (word.isEmpty) return '';
+      return word[0].toUpperCase() + word.substring(1);
+    }).join(' ');
   }
 
   List<int> _extractBuildAbilityIds(Map<String, dynamic> build) {
