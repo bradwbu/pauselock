@@ -18,6 +18,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   List<dynamic> _heroes = [];
   List<dynamic> _users = [];
   Map<String, dynamic> _tierOverrides = {};
+  Map<int, String> _pendingTiers = {};
+  bool _hasUnsavedChanges = false;
+  bool _isSaving = false;
   String? _error;
 
   @override
@@ -49,6 +52,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         _heroes = heroes ?? [];
         _users = users;
         _tierOverrides = tierOverrides;
+        _pendingTiers = {};
+        _hasUnsavedChanges = false;
         _isLoading = false;
       });
     } catch (e) {
@@ -56,6 +61,80 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         _error = 'Failed to load data';
         _isLoading = false;
       });
+    }
+  }
+
+  String _getCurrentTier(dynamic hero) {
+    final heroId = hero['id'] ?? 0;
+    if (_pendingTiers.containsKey(heroId)) {
+      return _pendingTiers[heroId]!;
+    }
+    return _tierOverrides['$heroId']?['tier'] ?? hero['tier'] ?? 'C';
+  }
+
+  void _setPendingTier(int heroId, String tier) {
+    final originalTier =
+        _tierOverrides['$heroId']?['tier'] ?? _heroes.firstWhere(
+          (h) => h['id'] == heroId,
+          orElse: () => {'tier': 'C'},
+        )['tier'] ??
+        'C';
+    setState(() {
+      if (tier == originalTier) {
+        _pendingTiers.remove(heroId);
+      } else {
+        _pendingTiers[heroId] = tier;
+      }
+      _hasUnsavedChanges = _pendingTiers.isNotEmpty;
+    });
+  }
+
+  Future<void> _saveTiers() async {
+    if (_pendingTiers.isEmpty) return;
+    setState(() => _isSaving = true);
+    try {
+      final result = await AuthService.saveAllTiers(_pendingTiers);
+      if (result['success'] == true) {
+        setState(() {
+          for (final entry in _pendingTiers.entries) {
+            _tierOverrides['${entry.key}'] = {
+              'heroId': entry.key,
+              'tier': entry.value,
+            };
+          }
+          _pendingTiers = {};
+          _hasUnsavedChanges = false;
+          _isSaving = false;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Tiers saved successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        setState(() => _isSaving = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to save: ${result['error']}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() => _isSaving = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -364,97 +443,163 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   }
 
   Widget _buildTierSection() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
+          decoration: BoxDecoration(
+            color: AppTheme.surfaceColor.withValues(alpha: 0.5),
+            border: Border(
+              bottom: BorderSide(
+                  color: AppTheme.textSecondary.withValues(alpha: 0.1)),
+            ),
+          ),
+          child: Row(
             children: [
-              Text('Hero Tier Management',
-                  style: Theme.of(context).textTheme.headlineSmall),
-              Text('Set S+/S/A/B/C tiers for each hero',
-                  style: Theme.of(context).textTheme.bodySmall),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Hero Tier Management',
+                        style: Theme.of(context).textTheme.headlineSmall),
+                    const SizedBox(height: 4),
+                    Text(
+                      _hasUnsavedChanges
+                          ? '${_pendingTiers.length} unsaved change(s)'
+                          : 'Set S+/S/A/B/C tiers for each hero',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: _hasUnsavedChanges
+                            ? AppTheme.accentColor
+                            : AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (_hasUnsavedChanges) ...[
+                OutlinedButton(
+                  onPressed: _isSaving
+                      ? null
+                      : () {
+                          setState(() {
+                            _pendingTiers = {};
+                            _hasUnsavedChanges = false;
+                          });
+                        },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.textSecondary,
+                    side: BorderSide(color: AppTheme.textSecondary.withValues(alpha: 0.3)),
+                  ),
+                  child: const Text('Discard'),
+                ),
+                const SizedBox(width: 12),
+              ],
+              ElevatedButton.icon(
+                onPressed: (_hasUnsavedChanges && !_isSaving) ? _saveTiers : null,
+                icon: _isSaving
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.save, size: 18),
+                label: Text(_isSaving ? 'Saving...' : 'Save Tiers'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _hasUnsavedChanges
+                      ? AppTheme.primaryColor
+                      : AppTheme.surfaceColorLight,
+                  foregroundColor: _hasUnsavedChanges
+                      ? Colors.white
+                      : AppTheme.textSecondary,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 24),
-          ..._buildHeroTierList(),
-        ],
-      ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.all(24),
+            itemCount: _heroes.length,
+            itemBuilder: (context, index) => _buildHeroTierRow(_heroes[index]),
+          ),
+        ),
+      ],
     );
   }
 
-  List<Widget> _buildHeroTierList() {
+  Widget _buildHeroTierRow(dynamic hero) {
     const tierOptions = ['S+', 'S', 'A', 'B', 'C'];
-    return _heroes.map((hero) {
-      final heroId = hero['id'] ?? 0;
-      final heroName = hero['name'] ?? 'Unknown';
-      final currentTier = _tierOverrides['$heroId']?['tier'] ?? hero['tier'] ?? 'C';
+    final heroId = hero['id'] ?? 0;
+    final heroName = hero['name'] ?? 'Unknown';
+    final currentTier = _getCurrentTier(hero);
+    final isChanged = _pendingTiers.containsKey(heroId);
 
-      return Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
-        decoration: AppTheme.glassDecorationSmall,
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                color: AppTheme.primaryColor.withValues(alpha: 0.1),
-              ),
-              child: (hero['iconUrl'] ?? '').toString().isNotEmpty
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.network(hero['iconUrl'],
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                              const Icon(Icons.person, color: Colors.white54)),
-                    )
-                  : const Icon(Icons.person, color: Colors.white54),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: isChanged
+            ? AppTheme.accentColor.withValues(alpha: 0.05)
+            : AppTheme.surfaceColor.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(8),
+        border: isChanged
+            ? Border.all(color: AppTheme.accentColor.withValues(alpha: 0.3))
+            : null,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(6),
+              color: AppTheme.primaryColor.withValues(alpha: 0.1),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(heroName,
-                      style: Theme.of(context).textTheme.titleSmall),
-                  Text(hero['heroType'] ?? '',
-                      style: Theme.of(context).textTheme.bodySmall),
-                ],
-              ),
+            child: (hero['iconUrl'] ?? '').toString().isNotEmpty
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: Image.network(hero['iconUrl'],
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) =>
+                            const Icon(Icons.person, color: Colors.white54, size: 18)),
+                  )
+                : const Icon(Icons.person, color: Colors.white54, size: 18),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(heroName,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(fontSize: 13)),
+                Text(hero['heroType'] ?? '',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 10)),
+              ],
             ),
-            ...tierOptions.map((tier) {
-              final isSelected = currentTier == tier;
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 2),
-                child: ChoiceChip(
-                  label: Text(tier,
-                      style: TextStyle(
-                          fontSize: 11,
-                          color: isSelected ? Colors.white : AppTheme.textSecondary)),
-                  selected: isSelected,
-                  selectedColor: _tierChipColor(tier),
-                  backgroundColor: AppTheme.surfaceColorLight,
-                  onSelected: (selected) async {
-                    if (selected) {
-                      await AuthService.setTierOverride(heroId, tier);
-                      setState(() => _tierOverrides['$heroId'] = {
-                            'heroId': heroId,
-                            'tier': tier,
-                          });
-                    }
-                  },
-                ),
-              );
-            }),
-          ],
-        ),
-      );
-    }).toList();
+          ),
+          ...tierOptions.map((tier) {
+            final isSelected = currentTier == tier;
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: ChoiceChip(
+                label: Text(tier,
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: isSelected ? Colors.white : AppTheme.textSecondary)),
+                selected: isSelected,
+                selectedColor: _tierChipColor(tier),
+                backgroundColor: AppTheme.surfaceColorLight,
+                onSelected: (selected) {
+                  if (selected) {
+                    _setPendingTier(heroId, tier);
+                  }
+                },
+              ),
+            );
+          }),
+        ],
+      ),
+    );
   }
 
   Color _tierChipColor(String tier) {

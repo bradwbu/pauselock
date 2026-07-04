@@ -126,6 +126,14 @@ class AuthService {
     });
   }
 
+  static Future<Map<String, dynamic>> saveAllTiers(
+      Map<int, String> tierMap) async {
+    final tiersJson = tierMap.map((k, v) => MapEntry('$k', v));
+    return await _postJson('/admin/save-tiers', {
+      'tiers': tiersJson,
+    });
+  }
+
   static Future<dynamic> _getJson(String path) async {
     try {
       final uri = _buildUri(path);

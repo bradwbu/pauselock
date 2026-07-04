@@ -181,6 +181,31 @@ Future<void> _handleRequest(HttpRequest request) async {
         result = {'success': true};
         break;
 
+      case '/admin/save-tiers':
+        if (!_auth.isAdmin(currentUser)) {
+          result = {'error': 'Admin access required'};
+          break;
+        }
+        if (request.method != 'POST') {
+          result = {'error': 'POST required'};
+          break;
+        }
+        final tiers = parsedBody['tiers'];
+        if (tiers is Map) {
+          final tierMap = <int, String>{};
+          for (final entry in tiers.entries) {
+            final id = int.tryParse('${entry.key}');
+            if (id != null) {
+              tierMap[id] = '${entry.value}';
+            }
+          }
+          _auth.setTierOverridesBatch(tierMap, currentUser?.username);
+          result = {'success': true, 'count': tierMap.length};
+        } else {
+          result = {'error': 'tiers must be a map of heroId -> tier'};
+        }
+        break;
+
       case '/hero/all':
         result = await _deadlockApi.getHeroes(
           limit: int.tryParse(query['limit'] ?? ''),

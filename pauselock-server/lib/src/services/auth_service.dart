@@ -1,9 +1,12 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:pauselock_server/src/generated/protocol.dart';
+
+const _tierOverridesFile = '/opt/pauselock/data/tier_overrides.json';
 
 class AuthService {
   AuthService._();
@@ -16,6 +19,7 @@ class AuthService {
 
   void initialize() {
     _seedAdminUser();
+    _loadTierOverrides();
   }
 
   void _seedAdminUser() {
@@ -197,9 +201,70 @@ class AuthService {
       setBy: setBy,
       setAt: DateTime.now(),
     );
+    _saveTierOverrides();
+  }
+
+  void setTierOverridesBatch(Map<int, String> tiers, String? setBy) {
+    final now = DateTime.now();
+    for (final entry in tiers.entries) {
+      _tierOverrides[entry.key] = HeroTierOverride(
+        heroId: entry.key,
+        tier: entry.value,
+        setBy: setBy,
+        setAt: now,
+      );
+    }
+    _saveTierOverrides();
   }
 
   void removeTierOverride(int heroId) {
     _tierOverrides.remove(heroId);
+    _saveTierOverrides();
+  }
+
+  void _loadTierOverrides() {
+    try {
+      final file = File(_tierOverridesFile);
+      if (!file.existsSync()) return;
+      final data = jsonDecode(file.readAsStringSync());
+      if (data is Map) {
+        for (final entry in data.entries) {
+          final id = int.tryParse(entry.key.toString());
+          if (id == null) continue;
+          final d = entry.value as Map<String, dynamic>;
+          _tierOverrides[id] = HeroTierOverride(
+            heroId: id,
+            tier: d['tier'] ?? 'C',
+            setBy: d['setBy'],
+            setAt: d['setAt'] != null
+                ? DateTime.tryParse(d['setAt']) ?? DateTime.now()
+                : DateTime.now(),
+          );
+        }
+        stdout.writeln('Loaded ${_tierOverrides.length} tier overrides from disk');
+      }
+    } catch (e) {
+      stdout.writeln('Failed to load tier overrides: $e');
+    }
+  }
+
+  void _saveTierOverrides() {
+    try {
+      final dir = Directory('/opt/pauselock/data');
+      if (!dir.existsSync()) dir.createSync(recursive: true);
+      final data = <String, dynamic>{};
+      for (final entry in _tierOverrides.entries) {
+        data['${entry.key}'] = {
+          'heroId': entry.key,
+          'tier': entry.value.tier,
+          'setBy': entry.value.setBy,
+          'setAt': entry.value.setAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
+        };
+      }
+      File(_tierOverridesFile)
+          .writeAsStringSync(const JsonEncoder.withIndent('  ').convert(data));
+    } catch (e) {
+      stdout.writeln('Failed to save tier overrides: $e');
+    }
   }
 }
