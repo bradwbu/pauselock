@@ -19,6 +19,13 @@ Future<void> run(List<String> args) async {
 }
 
 Future<void> _handleRequest(HttpRequest request) async {
+  // Read body BEFORE touching response headers (Dart HttpServer quirk)
+  final bodyBytes = await request.fold<List<int>>(
+      <int>[], (prev, chunk) => prev..addAll(chunk));
+  final parsedBody = bodyBytes.isEmpty
+      ? <String, dynamic>{}
+      : Map<String, dynamic>.from(jsonDecode(utf8.decode(bodyBytes)));
+
   request.response.headers
     ..contentType = ContentType.json
     ..add('Access-Control-Allow-Origin', '*')
@@ -33,7 +40,6 @@ Future<void> _handleRequest(HttpRequest request) async {
   try {
     final path = request.uri.path;
     final query = request.uri.queryParameters;
-    stdout.writeln('DEBUG: ${request.method} ${request.uri}');
     final authHeader = request.headers.value('Authorization');
     final tokenStr = authHeader?.replaceFirst('Bearer ', '');
     final currentUser = _auth.validateToken(tokenStr);
@@ -50,11 +56,10 @@ Future<void> _handleRequest(HttpRequest request) async {
           result = {'error': 'POST required'};
           break;
         }
-        final body = await _readBody(request);
         result = _auth.register(
-          body['email'] ?? '',
-          body['username'] ?? '',
-          body['password'] ?? '',
+          parsedBody['email'] ?? '',
+          parsedBody['username'] ?? '',
+          parsedBody['password'] ?? '',
         );
         break;
 
@@ -63,10 +68,9 @@ Future<void> _handleRequest(HttpRequest request) async {
           result = {'error': 'POST required'};
           break;
         }
-        final body = await _readBody(request);
         result = _auth.login(
-          body['emailOrUsername'] ?? '',
-          body['password'] ?? '',
+          parsedBody['emailOrUsername'] ?? '',
+          parsedBody['password'] ?? '',
         );
         break;
 
@@ -92,9 +96,8 @@ Future<void> _handleRequest(HttpRequest request) async {
           result = {'error': 'POST required'};
           break;
         }
-        final body = await _readBody(request);
         result = _auth.updateProfile(currentUser,
-            username: body['username'], email: body['email']);
+            username: parsedBody['username'], email: parsedBody['email']);
         break;
 
       case '/auth/change-password':
@@ -106,9 +109,8 @@ Future<void> _handleRequest(HttpRequest request) async {
           result = {'error': 'POST required'};
           break;
         }
-        final body = await _readBody(request);
         result = _auth.changePassword(
-            currentUser, body['oldPassword'] ?? '', body['newPassword'] ?? '');
+            currentUser, parsedBody['oldPassword'] ?? '', parsedBody['newPassword'] ?? '');
         break;
 
       case '/admin/users':
@@ -124,9 +126,8 @@ Future<void> _handleRequest(HttpRequest request) async {
           result = {'error': 'POST required'};
           break;
         }
-        final body = await _readBody(request);
         final success = _auth.updateUserRole(
-            body['userId'] ?? 0, body['role'] ?? 'user', currentUser);
+            parsedBody['userId'] ?? 0, parsedBody['role'] ?? 'user', currentUser);
         result = success
             ? {'success': true}
             : {'error': 'Failed to update role'};
@@ -137,9 +138,8 @@ Future<void> _handleRequest(HttpRequest request) async {
           result = {'error': 'POST required'};
           break;
         }
-        final body = await _readBody(request);
         final success =
-            _auth.deleteUser(body['userId'] ?? 0, currentUser);
+            _auth.deleteUser(parsedBody['userId'] ?? 0, currentUser);
         result =
             success ? {'success': true} : {'error': 'Failed to delete user'};
         break;
@@ -163,9 +163,8 @@ Future<void> _handleRequest(HttpRequest request) async {
           result = {'error': 'POST required'};
           break;
         }
-        final body = await _readBody(request);
-        final heroId = body['heroId'] ?? 0;
-        final tier = body['tier'] ?? 'C';
+        final heroId = parsedBody['heroId'] ?? 0;
+        final tier = parsedBody['tier'] ?? 'C';
         _auth.setTierOverride(heroId, tier, currentUser?.username);
         result = {'success': true};
         break;
@@ -179,8 +178,7 @@ Future<void> _handleRequest(HttpRequest request) async {
           result = {'error': 'POST required'};
           break;
         }
-        final body = await _readBody(request);
-        _auth.removeTierOverride(body['heroId'] ?? 0);
+        _auth.removeTierOverride(parsedBody['heroId'] ?? 0);
         result = {'success': true};
         break;
 
@@ -308,19 +306,6 @@ List<dynamic> _applyTierOverrides(List<dynamic> heroes) {
     }
   }
   return heroes;
-}
-
-Future<Map<String, dynamic>> _readBody(HttpRequest request) async {
-  try {
-    final body = await request.fold<List<int>>(
-        <int>[], (prev, chunk) => prev..addAll(chunk));
-    stdout.writeln('DEBUG _readBody: length=${body.length}, content=${utf8.decode(body)}');
-    if (body.isEmpty) return {};
-    return Map<String, dynamic>.from(jsonDecode(utf8.decode(body)));
-  } catch (e) {
-    stdout.writeln('DEBUG _readBody error: $e');
-    return {};
-  }
 }
 
 _NotFound _notFound(String path) =>
