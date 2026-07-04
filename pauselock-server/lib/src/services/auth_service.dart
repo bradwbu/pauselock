@@ -7,6 +7,8 @@ import 'package:crypto/crypto.dart';
 import 'package:pauselock_server/src/generated/protocol.dart';
 
 const _tierOverridesFile = '/opt/pauselock/data/tier_overrides.json';
+const _usersFile = '/opt/pauselock/data/users.json';
+const _tokensFile = '/opt/pauselock/data/tokens.json';
 
 class AuthService {
   AuthService._();
@@ -18,8 +20,13 @@ class AuthService {
   int _nextUserId = 1;
 
   void initialize() {
-    _seedAdminUser();
+    _loadUsers();
+    _loadTokens();
     _loadTierOverrides();
+    if (_users.isEmpty) {
+      _seedAdminUser();
+      _saveUsers();
+    }
   }
 
   void _seedAdminUser() {
@@ -55,6 +62,7 @@ class AuthService {
       role: role,
     );
     _users.add(user);
+    _saveUsers();
     return user;
   }
 
@@ -110,6 +118,7 @@ class AuthService {
       role: user.role,
     );
     _tokens[tokenStr] = token;
+    _saveTokens();
     return token;
   }
 
@@ -135,6 +144,7 @@ class AuthService {
 
   void logout(String tokenStr) {
     _tokens.remove(tokenStr);
+    _saveTokens();
   }
 
   UserAccount? getUserById(int id) {
@@ -163,6 +173,8 @@ class AuthService {
     if (user == null || user.id == 0) return false;
     _users.removeWhere((u) => u.id == userId);
     _tokens.removeWhere((_, t) => t.userId == userId);
+    _saveUsers();
+    _saveTokens();
     return true;
   }
 
@@ -265,6 +277,98 @@ class AuthService {
           .writeAsStringSync(const JsonEncoder.withIndent('  ').convert(data));
     } catch (e) {
       stdout.writeln('Failed to save tier overrides: $e');
+    }
+  }
+
+  void _loadUsers() {
+    try {
+      final file = File(_usersFile);
+      if (!file.existsSync()) return;
+      final data = jsonDecode(file.readAsStringSync());
+      if (data is List) {
+        for (final u in data) {
+          final user = UserAccount(
+            id: u['id'] ?? 0,
+            email: u['email'] ?? '',
+            username: u['username'] ?? '',
+            passwordHash: u['passwordHash'] ?? '',
+            role: u['role'] ?? 'user',
+          );
+          user.isActive = u['isActive'] ?? true;
+          user.lastLogin = u['lastLogin'] != null
+              ? DateTime.tryParse(u['lastLogin']) ?? DateTime.now()
+              : DateTime.now();
+          _users.add(user);
+          if (user.id >= _nextUserId) _nextUserId = user.id + 1;
+        }
+        stdout.writeln('Loaded ${_users.length} users from disk');
+      }
+    } catch (e) {
+      stdout.writeln('Failed to load users: $e');
+    }
+  }
+
+  void _saveUsers() {
+    try {
+      final dir = Directory('/opt/pauselock/data');
+      if (!dir.existsSync()) dir.createSync(recursive: true);
+      final data = _users.map((u) => {
+        'id': u.id,
+        'email': u.email,
+        'username': u.username,
+        'passwordHash': u.passwordHash,
+        'role': u.role,
+        'isActive': u.isActive,
+        'lastLogin': u.lastLogin.toIso8601String(),
+      }).toList();
+      File(_usersFile)
+          .writeAsStringSync(const JsonEncoder.withIndent('  ').convert(data));
+    } catch (e) {
+      stdout.writeln('Failed to save users: $e');
+    }
+  }
+
+  void _loadTokens() {
+    try {
+      final file = File(_tokensFile);
+      if (!file.existsSync()) return;
+      final data = jsonDecode(file.readAsStringSync());
+      if (data is List) {
+        for (final t in data) {
+          final expiresAt = t['expiresAt'] != null
+              ? DateTime.tryParse(t['expiresAt'])
+              : null;
+          if (expiresAt == null || expiresAt.isBefore(DateTime.now())) continue;
+          final token = AuthToken(
+            token: t['token'] ?? '',
+            userId: t['userId'] ?? 0,
+            role: t['role'] ?? 'user',
+          );
+          _tokens[token.token] = token;
+        }
+        stdout.writeln('Loaded ${_tokens.length} valid tokens from disk');
+      }
+    } catch (e) {
+      stdout.writeln('Failed to load tokens: $e');
+    }
+  }
+
+  void _saveTokens() {
+    try {
+      final dir = Directory('/opt/pauselock/data');
+      if (!dir.existsSync()) dir.createSync(recursive: true);
+      final data = _tokens.entries
+          .where((e) => !e.value.isExpired)
+          .map((e) => {
+        'token': e.key,
+        'userId': e.value.userId,
+        'role': e.value.role,
+        'expiresAt': e.value.expiresAt.toIso8601String(),
+      }).toList();
+      File(_tokensFile)
+          .writeAsStringSync(const JsonEncoder.withIndent('  ').convert(data));
+    } catch (e) {
+      stdout.writeln('Failed to save tokens: $e');
     }
   }
 }

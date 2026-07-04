@@ -142,6 +142,14 @@ class AuthService {
         if (_token != null) 'Authorization': 'Bearer $_token',
       };
       final response = await http.get(uri, headers: headers);
+      if (response.statusCode == 403) {
+        _token = null;
+        _currentUser = null;
+        return {
+          'error': 'Session expired. Please log in again.',
+          'auth_error': true
+        };
+      }
       if (response.statusCode < 200 || response.statusCode >= 300) {
         return {'error': 'HTTP ${response.statusCode}'};
       }
@@ -162,6 +170,14 @@ class AuthService {
       };
       final response =
           await http.post(uri, headers: headers, body: jsonEncode(body));
+      if (response.statusCode == 403) {
+        _token = null;
+        _currentUser = null;
+        return {
+          'error': 'Session expired. Please log in again.',
+          'auth_error': true
+        };
+      }
       if (response.statusCode < 200 || response.statusCode >= 300) {
         return {'error': 'HTTP ${response.statusCode}'};
       }

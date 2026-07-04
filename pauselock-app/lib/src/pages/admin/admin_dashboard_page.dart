@@ -116,6 +116,16 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         }
       } else {
         setState(() => _isSaving = false);
+        if (result['auth_error'] == true && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Session expired. Please log in again.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          Navigator.pushReplacementNamed(context, '/login');
+          return;
+        }
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(

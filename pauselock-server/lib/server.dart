@@ -310,8 +310,18 @@ Future<void> _handleRequest(HttpRequest request) async {
         break;
     }
 
-    request.response.statusCode =
-        result is _NotFound ? HttpStatus.notFound : HttpStatus.ok;
+    if (result is _NotFound) {
+      request.response.statusCode = HttpStatus.notFound;
+    } else if (result is Map && result.containsKey('error')) {
+      final err = result['error'] as String;
+      if (err.contains('Admin access') || err.contains('Not authenticated')) {
+        request.response.statusCode = HttpStatus.forbidden;
+      } else {
+        request.response.statusCode = HttpStatus.ok;
+      }
+    } else {
+      request.response.statusCode = HttpStatus.ok;
+    }
     request.response.write(jsonEncode(_json(result)));
   } catch (error, stackTrace) {
     stderr.writeln('Request failed: $error\n$stackTrace');
