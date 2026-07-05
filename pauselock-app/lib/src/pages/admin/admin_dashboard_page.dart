@@ -22,6 +22,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   bool _hasUnsavedChanges = false;
   bool _isSaving = false;
   String? _error;
+  List<dynamic> _announcements = [];
 
   @override
   void initState() {
@@ -48,12 +49,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       final heroes = await PauselockClient.getAllHeroes();
       final users = await AuthService.getUsers();
       final tierOverrides = await AuthService.getTierOverrides();
+      final announcements = await AuthService.getAdminAnnouncements();
       setState(() {
         _heroes = heroes ?? [];
         _users = users;
         _tierOverrides = tierOverrides;
         _pendingTiers = {};
         _hasUnsavedChanges = false;
+        _announcements = announcements;
         _isLoading = false;
       });
     } catch (e) {
@@ -179,6 +182,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     final sections = [
       {'key': 'dashboard', 'label': 'Dashboard', 'icon': Icons.dashboard},
       {'key': 'tiers', 'label': 'Hero Tiers', 'icon': Icons.leaderboard},
+      {'key': 'announcements', 'label': 'Announcements', 'icon': Icons.campaign},
       {'key': 'users', 'label': 'Users', 'icon': Icons.people},
       {'key': 'heroes', 'label': 'Heroes', 'icon': Icons.shield},
     ];
@@ -363,6 +367,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         return _buildDashboardSection();
       case 'tiers':
         return _buildTierSection();
+      case 'announcements':
+        return _buildAnnouncementsSection();
       case 'users':
         return _buildUsersSection();
       case 'heroes':
@@ -388,11 +394,16 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               _buildDashboardCard('Registered Users', '${_users.length}',
                   Icons.people, AppTheme.accentColor),
               const SizedBox(width: 16),
-              _buildDashboardCard(
-                  'Tier Overrides',
+              _buildDashboardCard('Tier Overrides',
                   '${_tierOverrides.length}',
                   Icons.leaderboard,
                   AppTheme.successColor),
+              const SizedBox(width: 16),
+              _buildDashboardCard(
+                  'Announcements',
+                  '${_announcements.length}',
+                  Icons.campaign,
+                  AppTheme.warningColor),
             ],
           ),
           const SizedBox(height: 24),
@@ -408,6 +419,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               }),
               _buildActionButton('Manage Users', () {
                 setState(() => _selectedSection = 'users');
+              }),
+              _buildActionButton('Manage Announcements', () {
+                setState(() => _selectedSection = 'announcements');
               }),
               _buildActionButton('View Heroes', () {
                 setState(() => _selectedSection = 'heroes');
@@ -822,6 +836,417 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 ),
               );
             }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnnouncementsSection() {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.campaign, color: AppTheme.primaryColor, size: 24),
+              const SizedBox(width: 12),
+              const Text('Site Announcements',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold)),
+              const Spacer(),
+              ElevatedButton.icon(
+                onPressed: () => _showCreateAnnouncementDialog(),
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('New Announcement'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Create and manage announcements displayed at the top of the site.',
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 13),
+          ),
+          const SizedBox(height: 24),
+          if (_announcements.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(40),
+              decoration: AppTheme.glassDecoration,
+              child: Column(
+                children: [
+                  Icon(Icons.campaign_outlined,
+                      color: Colors.white.withValues(alpha: 0.2), size: 48),
+                  const SizedBox(height: 16),
+                  Text('No announcements yet',
+                      style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.5),
+                          fontSize: 16)),
+                  const SizedBox(height: 8),
+                  Text('Create one to display a banner at the top of the site.',
+                      style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.3),
+                          fontSize: 13)),
+                ],
+              ),
+            )
+          else
+            ..._announcements.map((a) => _buildAnnouncementCard(a)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnnouncementCard(Map<String, dynamic> announcement) {
+    final id = announcement['id'] ?? 0;
+    final message = announcement['message'] ?? '';
+    final type = announcement['type'] ?? 'info';
+    final enabled = announcement['enabled'] ?? true;
+    final createdBy = announcement['createdBy'] ?? 'unknown';
+    final createdAt = announcement['createdAt'] ?? '';
+
+    Color typeColor;
+    IconData typeIcon;
+    switch (type) {
+      case 'warning':
+        typeColor = AppTheme.warningColor;
+        typeIcon = Icons.warning_amber_rounded;
+        break;
+      case 'error':
+        typeColor = AppTheme.errorColor;
+        typeIcon = Icons.error_outline_rounded;
+        break;
+      case 'success':
+        typeColor = AppTheme.successColor;
+        typeIcon = Icons.check_circle_outline_rounded;
+        break;
+      default:
+        typeColor = AppTheme.accentColor;
+        typeIcon = Icons.info_outline_rounded;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: AppTheme.glassDecoration,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(typeIcon, color: typeColor, size: 20),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: typeColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(type.toUpperCase(),
+                    style: TextStyle(
+                        color: typeColor,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: enabled
+                      ? AppTheme.successColor.withValues(alpha: 0.15)
+                      : Colors.white.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(enabled ? 'ACTIVE' : 'INACTIVE',
+                    style: TextStyle(
+                        color: enabled
+                            ? AppTheme.successColor
+                            : Colors.white.withValues(alpha: 0.5),
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold)),
+              ),
+              const Spacer(),
+              Switch(
+                value: enabled,
+                onChanged: (val) async {
+                  await AuthService.updateAnnouncement(id, enabled: val);
+                  _loadData();
+                },
+                activeThumbColor: AppTheme.successColor,
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                onPressed: () => _showEditAnnouncementDialog(announcement),
+                icon: const Icon(Icons.edit, size: 18),
+                color: AppTheme.textSecondary,
+                tooltip: 'Edit',
+              ),
+              IconButton(
+                onPressed: () => _confirmDeleteAnnouncement(id),
+                icon: const Icon(Icons.delete, size: 18),
+                color: AppTheme.errorColor,
+                tooltip: 'Delete',
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(message,
+              style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.5)),
+          const SizedBox(height: 8),
+          Text('Created by $createdBy • ${_formatDate(createdAt)}',
+              style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.4), fontSize: 11)),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(String isoDate) {
+    try {
+      final dt = DateTime.parse(isoDate);
+      return '${dt.month}/${dt.day}/${dt.year} ${dt.hour}:${dt.minute.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return isoDate;
+    }
+  }
+
+  void _showCreateAnnouncementDialog() {
+    final messageController = TextEditingController();
+    String selectedType = 'info';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: AppTheme.surfaceColor,
+          title: const Text('Create Announcement',
+              style: TextStyle(color: Colors.white)),
+          content: SizedBox(
+            width: 480,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Type',
+                    style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.7), fontSize: 12)),
+                const SizedBox(height: 8),
+                Row(
+                  children: ['info', 'warning', 'error', 'success'].map((t) {
+                    final isSelected = t == selectedType;
+                    Color chipColor;
+                    switch (t) {
+                      case 'warning':
+                        chipColor = AppTheme.warningColor;
+                        break;
+                      case 'error':
+                        chipColor = AppTheme.errorColor;
+                        break;
+                      case 'success':
+                        chipColor = AppTheme.successColor;
+                        break;
+                      default:
+                        chipColor = AppTheme.accentColor;
+                    }
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        label: Text(t[0].toUpperCase() + t.substring(1)),
+                        selected: isSelected,
+                        onSelected: (_) =>
+                            setDialogState(() => selectedType = t),
+                        selectedColor: chipColor.withValues(alpha: 0.2),
+                        labelStyle: TextStyle(
+                            color: isSelected ? chipColor : Colors.white54,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 16),
+                Text('Message',
+                    style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.7), fontSize: 12)),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: messageController,
+                  maxLines: 3,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: 'Enter announcement message...',
+                    hintStyle: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.3)),
+                    filled: true,
+                    fillColor: AppTheme.surfaceColorLight,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide.none),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (messageController.text.trim().isEmpty) return;
+                await AuthService.createAnnouncement(
+                    messageController.text.trim(), selectedType);
+                if (ctx.mounted) Navigator.pop(ctx);
+                _loadData();
+              },
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor),
+              child: const Text('Create',
+                  style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showEditAnnouncementDialog(Map<String, dynamic> announcement) {
+    final messageController =
+        TextEditingController(text: announcement['message'] ?? '');
+    String selectedType = announcement['type'] ?? 'info';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: AppTheme.surfaceColor,
+          title: const Text('Edit Announcement',
+              style: TextStyle(color: Colors.white)),
+          content: SizedBox(
+            width: 480,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Type',
+                    style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.7), fontSize: 12)),
+                const SizedBox(height: 8),
+                Row(
+                  children: ['info', 'warning', 'error', 'success'].map((t) {
+                    final isSelected = t == selectedType;
+                    Color chipColor;
+                    switch (t) {
+                      case 'warning':
+                        chipColor = AppTheme.warningColor;
+                        break;
+                      case 'error':
+                        chipColor = AppTheme.errorColor;
+                        break;
+                      case 'success':
+                        chipColor = AppTheme.successColor;
+                        break;
+                      default:
+                        chipColor = AppTheme.accentColor;
+                    }
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        label: Text(t[0].toUpperCase() + t.substring(1)),
+                        selected: isSelected,
+                        onSelected: (_) =>
+                            setDialogState(() => selectedType = t),
+                        selectedColor: chipColor.withValues(alpha: 0.2),
+                        labelStyle: TextStyle(
+                            color: isSelected ? chipColor : Colors.white54,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 16),
+                Text('Message',
+                    style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.7), fontSize: 12)),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: messageController,
+                  maxLines: 3,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: 'Enter announcement message...',
+                    hintStyle: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.3)),
+                    filled: true,
+                    fillColor: AppTheme.surfaceColorLight,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide.none),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (messageController.text.trim().isEmpty) return;
+                await AuthService.updateAnnouncement(
+                  announcement['id'],
+                  message: messageController.text.trim(),
+                  type: selectedType,
+                );
+                if (ctx.mounted) Navigator.pop(ctx);
+                _loadData();
+              },
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor),
+              child: const Text('Save', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmDeleteAnnouncement(int id) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surfaceColor,
+        title: const Text('Delete Announcement',
+            style: TextStyle(color: Colors.white)),
+        content: const Text('Are you sure you want to delete this announcement?',
+            style: TextStyle(color: AppTheme.textSecondary)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await AuthService.deleteAnnouncement(id);
+              if (ctx.mounted) Navigator.pop(ctx);
+              _loadData();
+            },
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.errorColor),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),

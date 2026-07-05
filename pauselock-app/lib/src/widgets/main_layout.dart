@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pauselock_app/src/theme/app_theme.dart';
 import 'package:pauselock_app/src/services/auth_service.dart';
+import 'package:pauselock_app/src/widgets/announcement_banner.dart';
 
 class MainLayout extends StatelessWidget {
   final Widget child;
@@ -18,8 +19,11 @@ class MainLayout extends StatelessWidget {
           children: [
             _buildSidebar(context),
             Expanded(
-              child: ClipRRect(
-                child: child,
+              child: Column(
+                children: [
+                  const AnnouncementBanner(),
+                  Expanded(child: child),
+                ],
               ),
             ),
           ],
@@ -43,7 +47,12 @@ class MainLayout extends StatelessWidget {
           backgroundColor: AppTheme.backgroundColor,
           child: _buildSidebar(context, isMobile: true),
         ),
-        body: child,
+        body: Column(
+          children: [
+            const AnnouncementBanner(),
+            Expanded(child: child),
+          ],
+        ),
       );
     }
   }

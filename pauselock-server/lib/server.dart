@@ -305,6 +305,67 @@ Future<void> _handleRequest(HttpRequest request) async {
         result = await _deadlockApi.getGlobalStats();
         break;
 
+      case '/announcements':
+        result = _auth.getAnnouncements();
+        break;
+
+      case '/admin/announcements':
+        if (!_auth.isAdmin(currentUser)) {
+          result = {'error': 'Admin access required'};
+          break;
+        }
+        result = _auth.getAllAnnouncements();
+        break;
+
+      case '/admin/announcements/create':
+        if (!_auth.isAdmin(currentUser)) {
+          result = {'error': 'Admin access required'};
+          break;
+        }
+        if (request.method != 'POST') {
+          result = {'error': 'POST required'};
+          break;
+        }
+        result = _auth.createAnnouncement(
+          parsedBody['message'] ?? '',
+          parsedBody['type'],
+          currentUser?.username ?? 'admin',
+        );
+        break;
+
+      case '/admin/announcements/update':
+        if (!_auth.isAdmin(currentUser)) {
+          result = {'error': 'Admin access required'};
+          break;
+        }
+        if (request.method != 'POST') {
+          result = {'error': 'POST required'};
+          break;
+        }
+        result = _auth.updateAnnouncement(
+          parsedBody['id'] ?? 0,
+          message: parsedBody['message'],
+          type: parsedBody['type'],
+          enabled: parsedBody['enabled'],
+        );
+        if (result == null) {
+          result = {'error': 'Announcement not found'};
+        }
+        break;
+
+      case '/admin/announcements/delete':
+        if (!_auth.isAdmin(currentUser)) {
+          result = {'error': 'Admin access required'};
+          break;
+        }
+        if (request.method != 'POST') {
+          result = {'error': 'POST required'};
+          break;
+        }
+        _auth.deleteAnnouncement(parsedBody['id'] ?? 0);
+        result = {'success': true};
+        break;
+
       default:
         result = _notFound(path);
         break;

@@ -9,6 +9,7 @@ import 'package:pauselock_server/src/generated/protocol.dart';
 const _tierOverridesFile = '/opt/pauselock/data/tier_overrides.json';
 const _usersFile = '/opt/pauselock/data/users.json';
 const _tokensFile = '/opt/pauselock/data/tokens.json';
+const _announcementsFile = '/opt/pauselock/data/announcements.json';
 
 class AuthService {
   AuthService._();
@@ -17,15 +18,24 @@ class AuthService {
   final List<UserAccount> _users = [];
   final Map<String, AuthToken> _tokens = {};
   final Map<int, HeroTierOverride> _tierOverrides = {};
+  final List<Map<String, dynamic>> _announcements = [];
   int _nextUserId = 1;
 
   void initialize() {
     _loadUsers();
     _loadTokens();
     _loadTierOverrides();
+    _loadAnnouncements();
     if (_users.isEmpty) {
       _seedAdminUser();
       _saveUsers();
+    }
+    if (_announcements.isEmpty) {
+      createAnnouncement(
+        'Pauselock is currently under development and is subject to change at any time. Hero tiers are of my own opinion, but player voting will be implemented in the future so that hero tiers are a shared opinion.',
+        'info',
+        'system',
+      );
     }
   }
 
@@ -369,6 +379,85 @@ class AuthService {
           .writeAsStringSync(const JsonEncoder.withIndent('  ').convert(data));
     } catch (e) {
       stdout.writeln('Failed to save tokens: $e');
+    }
+  }
+
+  List<Map<String, dynamic>> getAnnouncements() {
+    return _announcements.where((a) => a['enabled'] == true).toList();
+  }
+
+  List<Map<String, dynamic>> getAllAnnouncements() {
+    return List.from(_announcements);
+  }
+
+  Map<String, dynamic>? getAnnouncement(int id) {
+    try {
+      return _announcements.firstWhere((a) => a['id'] == id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Map<String, dynamic> createAnnouncement(
+      String message, String? type, String createdBy) {
+    final id = _announcements.isEmpty
+        ? 1
+        : (_announcements.map((a) => a['id'] as int).reduce((a, b) => a > b ? a : b) + 1);
+    final announcement = {
+      'id': id,
+      'message': message,
+      'type': type ?? 'info',
+      'enabled': true,
+      'createdAt': DateTime.now().toIso8601String(),
+      'createdBy': createdBy,
+    };
+    _announcements.add(announcement);
+    _saveAnnouncements();
+    return announcement;
+  }
+
+  Map<String, dynamic>? updateAnnouncement(
+      int id, {String? message, String? type, bool? enabled}) {
+    final idx = _announcements.indexWhere((a) => a['id'] == id);
+    if (idx == -1) return null;
+    if (message != null) _announcements[idx]['message'] = message;
+    if (type != null) _announcements[idx]['type'] = type;
+    if (enabled != null) _announcements[idx]['enabled'] = enabled;
+    _announcements[idx]['updatedAt'] = DateTime.now().toIso8601String();
+    _saveAnnouncements();
+    return _announcements[idx];
+  }
+
+  bool deleteAnnouncement(int id) {
+    _announcements.removeWhere((a) => a['id'] == id);
+    _saveAnnouncements();
+    return true;
+  }
+
+  void _loadAnnouncements() {
+    try {
+      final file = File(_announcementsFile);
+      if (!file.existsSync()) return;
+      final data = jsonDecode(file.readAsStringSync());
+      if (data is List) {
+        for (final a in data) {
+          _announcements.add(Map<String, dynamic>.from(a));
+        }
+        stdout.writeln('Loaded ${_announcements.length} announcements from disk');
+      }
+    } catch (e) {
+      stdout.writeln('Failed to load announcements: $e');
+    }
+  }
+
+  void _saveAnnouncements() {
+    try {
+      final dir = Directory('/opt/pauselock/data');
+      if (!dir.existsSync()) dir.createSync(recursive: true);
+      File(_announcementsFile)
+          .writeAsStringSync(const JsonEncoder.withIndent('  ').convert(_announcements));
+    } catch (e) {
+      stdout.writeln('Failed to save announcements: $e');
     }
   }
 }

@@ -134,6 +134,42 @@ class AuthService {
     });
   }
 
+  static Future<List<dynamic>> getAnnouncements() async {
+    final result = await _getJson('/announcements');
+    if (result is List) return result;
+    return <dynamic>[];
+  }
+
+  static Future<List<dynamic>> getAdminAnnouncements() async {
+    final result = await _getJson('/admin/announcements');
+    if (result is List) return result;
+    return <dynamic>[];
+  }
+
+  static Future<Map<String, dynamic>> createAnnouncement(
+      String message, String type) async {
+    return await _postJson('/admin/announcements/create', {
+      'message': message,
+      'type': type,
+    });
+  }
+
+  static Future<Map<String, dynamic>> updateAnnouncement(int id,
+      {String? message, String? type, bool? enabled}) async {
+    return await _postJson('/admin/announcements/update', {
+      'id': id,
+      if (message != null) 'message': message,
+      if (type != null) 'type': type,
+      if (enabled != null) 'enabled': enabled,
+    });
+  }
+
+  static Future<Map<String, dynamic>> deleteAnnouncement(int id) async {
+    return await _postJson('/admin/announcements/delete', {
+      'id': id,
+    });
+  }
+
   static Future<dynamic> _getJson(String path) async {
     try {
       final uri = _buildUri(path);

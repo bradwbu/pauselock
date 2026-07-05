@@ -7,6 +7,7 @@ class LocalStorageService {
   static const String _keyFavHeroes = 'favoriteHeroes';
   static const String _keyAuthToken = 'authToken';
   static const String _keyAuthUser = 'authUser';
+  static const String _keyDismissedAnnouncements = 'dismissedAnnouncements';
 
   static late SharedPreferences _prefs;
 
@@ -88,5 +89,17 @@ class LocalStorageService {
   static Future<void> clearAuth() async {
     await _prefs.remove(_keyAuthToken);
     await _prefs.remove(_keyAuthUser);
+  }
+
+  static Set<int> getDismissedAnnouncements() {
+    final list = _prefs.getStringList(_keyDismissedAnnouncements) ?? [];
+    return list.map((e) => int.tryParse(e) ?? 0).where((e) => e != 0).toSet();
+  }
+
+  static Future<void> dismissAnnouncement(int id) async {
+    final set = getDismissedAnnouncements();
+    set.add(id);
+    await _prefs.setStringList(
+        _keyDismissedAnnouncements, set.map((e) => e.toString()).toList());
   }
 }
