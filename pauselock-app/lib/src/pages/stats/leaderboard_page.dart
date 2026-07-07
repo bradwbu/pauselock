@@ -13,7 +13,7 @@ class LeaderboardPage extends StatefulWidget {
 }
 
 class _LeaderboardPageState extends State<LeaderboardPage> {
-  final String _selectedRegion = 'Global';
+  String _selectedRegion = 'Global';
   List<dynamic> _entries = [];
   bool _isLoading = true;
 
@@ -94,6 +94,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                                 entry['playerName'] ?? 'Unknown',
                                 entry['mmr'] ?? 0,
                                 entry['region'] ?? 'Unknown',
+                                entry['avatarUrl'] ?? '',
                               ))
                           .toList(),
                     ),
@@ -116,12 +117,17 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                   child: Container(
                     margin: const EdgeInsets.symmetric(horizontal: 4),
                     child: ElevatedButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        if (_selectedRegion != region) {
+                          setState(() => _selectedRegion = region);
+                          _loadLeaderboard();
+                        }
+                      },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: region == 'Global'
+                        backgroundColor: region == _selectedRegion
                             ? AppTheme.primaryColor
                             : AppTheme.surfaceColorLight,
-                        foregroundColor: region == 'Global'
+                        foregroundColor: region == _selectedRegion
                             ? Colors.white
                             : AppTheme.textSecondary,
                         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -163,7 +169,8 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                   (players[1]['rank'] ?? 2).toString(),
                   players[1]['playerName'] ?? 'Unknown',
                   (players[1]['mmr'] ?? 0).toString(),
-                  AppTheme.secondaryColor)),
+                  AppTheme.secondaryColor,
+                  avatarUrl: players[1]['avatarUrl'] ?? '')),
           const SizedBox(width: 8),
           Expanded(
             child: Container(
@@ -174,7 +181,8 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                   players[0]['playerName'] ?? 'Unknown',
                   (players[0]['mmr'] ?? 0).toString(),
                   AppTheme.primaryColor,
-                  isFirst: true),
+                  isFirst: true,
+                  avatarUrl: players[0]['avatarUrl'] ?? ''),
             ),
           ),
           const SizedBox(width: 8),
@@ -184,7 +192,8 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                   (players[2]['rank'] ?? 3).toString(),
                   players[2]['playerName'] ?? 'Unknown',
                   (players[2]['mmr'] ?? 0).toString(),
-                  AppTheme.accentColor)),
+                  AppTheme.accentColor,
+                  avatarUrl: players[2]['avatarUrl'] ?? '')),
         ],
       ),
     );
@@ -192,26 +201,59 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
 
   Widget _buildTopPlayerCard(
       BuildContext context, String rank, String name, String mmr, Color color,
-      {bool isFirst = false}) {
+      {bool isFirst = false, String avatarUrl = ''}) {
+    final size = isFirst ? 50.0 : 40.0;
     return Container(
       decoration: AppTheme.glassDecoration,
       padding: EdgeInsets.all(isFirst ? 20 : 16),
       child: Column(
         children: [
-          Container(
-            width: isFirst ? 50 : 40,
-            height: isFirst ? 50 : 40,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.2),
-              shape: BoxShape.circle,
-              border: Border.all(color: color, width: 2),
-            ),
-            child: Center(
-                child: Text(rank,
-                    style: TextStyle(
-                        color: color,
-                        fontWeight: FontWeight.bold,
-                        fontSize: isFirst ? 20 : 16))),
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                width: size + 6,
+                height: size + 6,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: color, width: 2),
+                ),
+              ),
+              Container(
+                width: size,
+                height: size,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                ),
+                child: ClipOval(
+                  child: avatarUrl.isNotEmpty
+                      ? Image.network(
+                          avatarUrl,
+                          width: size,
+                          height: size,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            color: color.withValues(alpha: 0.2),
+                            child: Center(
+                                child: Text(rank,
+                                    style: TextStyle(
+                                        color: color,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: isFirst ? 20 : 16))),
+                          ),
+                        )
+                      : Container(
+                          color: color.withValues(alpha: 0.2),
+                          child: Center(
+                              child: Text(rank,
+                                  style: TextStyle(
+                                      color: color,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: isFirst ? 20 : 16))),
+                        ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           Text(name,
@@ -228,7 +270,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
   }
 
   Widget _buildLeaderboardRow(
-      BuildContext context, int rank, String name, int mmr, String region) {
+      BuildContext context, int rank, String name, int mmr, String region, String avatarUrl) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: AppTheme.glassDecorationSmall,
@@ -237,14 +279,36 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
           width: 36,
           height: 36,
           decoration: BoxDecoration(
-            color: AppTheme.primaryColor.withValues(alpha: 0.2),
             shape: BoxShape.circle,
+            border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3), width: 1),
           ),
-          child: Center(
-              child: Text('$rank',
-                  style: const TextStyle(
-                      color: AppTheme.primaryColor,
-                      fontWeight: FontWeight.bold))),
+          child: ClipOval(
+            child: avatarUrl.isNotEmpty
+                ? Image.network(
+                    avatarUrl,
+                    width: 36,
+                    height: 36,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                      child: Center(
+                          child: Text('$rank',
+                              style: const TextStyle(
+                                  color: AppTheme.primaryColor,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12))),
+                    ),
+                  )
+                : Container(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                    child: Center(
+                        child: Text('$rank',
+                            style: const TextStyle(
+                                color: AppTheme.primaryColor,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12))),
+                  ),
+          ),
         ),
         title: Text(name, style: Theme.of(context).textTheme.titleSmall),
         subtitle: Text(region, style: Theme.of(context).textTheme.bodySmall),

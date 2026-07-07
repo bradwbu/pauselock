@@ -325,6 +325,37 @@ class DeadlockApiService {
           .map((entry) => _mapLeaderboardEntry(entry, apiRegion))
           .take(limit)
           .toList();
+
+      // Batch-fetch Steam avatars for all account IDs
+      final accountIds = entries
+          .map((e) => e['accountId'] as int)
+          .where((id) => id > 0)
+          .toSet()
+          .toList();
+      if (accountIds.isNotEmpty) {
+        try {
+          final idsParam = accountIds.join(',');
+          final steamProfiles = await _getList(
+              _apiBaseUrl, '/v1/players/steam', {'account_ids': idsParam});
+          final avatarMap = <int, String>{};
+          for (final profile in steamProfiles) {
+            final id = _asInt(profile['account_id']);
+            final avatar = profile['avatarfull'] ?? profile['avatarmedium'] ?? '';
+            if (id > 0 && avatar.toString().isNotEmpty) {
+              avatarMap[id] = avatar.toString();
+            }
+          }
+          for (final entry in entries) {
+            final id = entry['accountId'] as int;
+            if (avatarMap.containsKey(id)) {
+              entry['avatarUrl'] = avatarMap[id];
+            }
+          }
+        } catch (e) {
+          stderr.writeln('Leaderboard avatar fetch failed: $e');
+        }
+      }
+
       return entries;
     } catch (error) {
       stderr.writeln('Deadlock leaderboard API fallback: $error');

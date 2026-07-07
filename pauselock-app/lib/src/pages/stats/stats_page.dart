@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pauselock_app/src/theme/app_theme.dart';
 import 'package:pauselock_app/src/services/pauselock_client.dart';
+import 'package:pauselock_app/src/utils/formatters.dart';
 
 class StatsPage extends StatefulWidget {
   final int? accountId;
@@ -13,8 +16,74 @@ class StatsPage extends StatefulWidget {
 
 class _StatsPageState extends State<StatsPage> {
   final _searchController = TextEditingController();
+  final _focusNode = FocusNode();
   Map<String, dynamic>? _playerData;
+  List<dynamic> _recentMatches = [];
+  List<dynamic> _searchResults = [];
+  List<dynamic> _suggestions = [];
+  Map<int, Map<String, dynamic>> _heroMap = {};
   bool _isLoading = false;
+  bool _showingResults = false;
+  bool _isSearchingSuggestions = false;
+  Timer? _debounceTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(_onSearchChanged);
+    if (widget.accountId != null) {
+      _loadPlayer(widget.accountId!);
+    }
+  }
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    _debounceTimer?.cancel();
+    final query = _searchController.text.trim();
+
+    if (query.isEmpty || int.tryParse(query) != null) {
+      setState(() {
+        _suggestions = [];
+        _isSearchingSuggestions = false;
+      });
+      return;
+    }
+
+    setState(() => _isSearchingSuggestions = true);
+
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () async {
+      if (query.length < 2 || _searchController.text.trim() != query) {
+        if (mounted) {
+          setState(() {
+            _suggestions = [];
+            _isSearchingSuggestions = false;
+          });
+        }
+        return;
+      }
+      final results = await PauselockClient.searchPlayers(query);
+      if (!mounted) return;
+      if (results != null && results.isNotEmpty && _searchController.text.trim() == query) {
+        setState(() {
+          _suggestions = results.take(5).toList();
+          _isSearchingSuggestions = false;
+        });
+      } else {
+        setState(() {
+          _suggestions = [];
+          _isSearchingSuggestions = false;
+        });
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,6 +108,8 @@ class _StatsPageState extends State<StatsPage> {
                 ],
               ),
               SliverToBoxAdapter(child: _buildSearchSection(context)),
+              if (_showingResults && _searchResults.isNotEmpty)
+                SliverToBoxAdapter(child: _buildSearchResults(context)),
               if (_playerData != null) ...[
                 SliverToBoxAdapter(child: _buildPlayerOverview(context)),
                 SliverToBoxAdapter(child: _buildTopHeroes(context)),
@@ -53,33 +124,226 @@ class _StatsPageState extends State<StatsPage> {
   }
 
   Widget _buildSearchSection(BuildContext context) {
+    final showClear = _searchController.text.isNotEmpty || _suggestions.isNotEmpty;
     return Container(
       padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          Container(
+            decoration: AppTheme.glassDecoration,
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                TextField(
+                  controller: _searchController,
+                  focusNode: _focusNode,
+                  decoration: InputDecoration(
+                    hintText: 'Search player name or enter Steam ID...',
+                    prefixIcon: const Icon(Icons.search, color: AppTheme.textSecondary),
+                    suffixIcon: showClear
+                        ? IconButton(
+                            icon: const Icon(Icons.close, color: AppTheme.textSecondary),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() {
+                                _searchResults = [];
+                                _showingResults = false;
+                                _suggestions = [];
+                              });
+                            },
+                          )
+                        : null,
+                  ),
+                  style: const TextStyle(color: AppTheme.textPrimary),
+                  onSubmitted: (_) => _searchPlayer(),
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton(
+                  onPressed: _searchPlayer,
+                  child: _isLoading
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Text('Search Player'),
+                ),
+              ],
+            ),
+          ),
+          if (_isSearchingSuggestions)
+            Container(
+              margin: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: AppTheme.glassDecoration,
+              child: const Center(
+                child: SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primaryColor),
+                ),
+              ),
+            ),
+          if (!_isSearchingSuggestions && _suggestions.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.only(top: 8),
+              decoration: AppTheme.glassDecoration,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: _suggestions.map((player) {
+                  final name = player['playerName'] ?? 'Unknown';
+                  final accountId = player['accountId'] ?? 0;
+                  final avatarUrl = player['avatarUrl'] ?? '';
+                  return InkWell(
+                    onTap: () {
+                      _focusNode.unfocus();
+                      setState(() {
+                        _suggestions = [];
+                        _searchResults = [];
+                        _showingResults = false;
+                        _isLoading = true;
+                        _playerData = null;
+                        _recentMatches = [];
+                      });
+                      _loadPlayer(accountId);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 16,
+                            backgroundColor: AppTheme.surfaceColorLight,
+                            backgroundImage: avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+                            child: avatarUrl.isEmpty
+                                ? const Icon(Icons.person, color: AppTheme.textSecondary, size: 16)
+                                : null,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(name,
+                                    style: Theme.of(context).textTheme.bodyMedium,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis),
+                                Text('Steam ID: $accountId',
+                                    style: Theme.of(context).textTheme.bodySmall),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchResults(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 24),
       child: Container(
         decoration: AppTheme.glassDecoration,
-        padding: const EdgeInsets.all(20),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(
-              controller: _searchController,
-              decoration: const InputDecoration(
-                hintText: 'Enter Steam ID or search player...',
-                prefixIcon: Icon(Icons.search, color: AppTheme.textSecondary),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                '${_searchResults.length} player${_searchResults.length == 1 ? '' : 's'} found',
+                style: Theme.of(context).textTheme.bodySmall,
               ),
-              style: const TextStyle(color: AppTheme.textPrimary),
-              onSubmitted: (_) => _searchPlayer(),
             ),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: _searchPlayer,
-              child: _isLoading
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Text('Search Player'),
-            ),
+            ..._searchResults.map((player) {
+              final name = player['playerName'] ?? 'Unknown';
+              final accountId = player['accountId'] ?? 0;
+              final avatarUrl = player['avatarUrl'] ?? '';
+              return InkWell(
+                onTap: () {
+                  _focusNode.unfocus();
+                  setState(() {
+                    _showingResults = false;
+                    _searchResults = [];
+                    _isLoading = true;
+                  });
+                  _loadPlayer(accountId);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 20,
+                        backgroundColor: AppTheme.surfaceColorLight,
+                        backgroundImage: avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+                        child: avatarUrl.isEmpty
+                            ? const Icon(Icons.person, color: AppTheme.textSecondary, size: 20)
+                            : null,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(name, style: Theme.of(context).textTheme.bodyLarge),
+                            Text('Steam ID: $accountId', style: Theme.of(context).textTheme.bodySmall),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right, color: AppTheme.textSecondary),
+                    ],
+                  ),
+                ),
+              );
+            }),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _loadPlayer(int accountId) async {
+    final results = await Future.wait([
+      PauselockClient.getPlayerStats(accountId),
+      PauselockClient.getPlayerMatches(accountId, limit: 10),
+      if (_heroMap.isEmpty) PauselockClient.getAllHeroes() else Future.value(null),
+    ]);
+
+    final data = results[0] as Map<String, dynamic>?;
+    final matches = results[1] as List<dynamic>?;
+    final heroes = results[2] as List<dynamic>?;
+
+    if (heroes != null && heroes.isNotEmpty && _heroMap.isEmpty) {
+      _heroMap = {
+        for (final h in heroes)
+          if (h is Map && h['id'] != null)
+            asInt(h['id']): Map<String, dynamic>.from(h),
+      };
+    }
+
+    if (data != null) {
+      setState(() {
+        _playerData = data;
+        _recentMatches = matches ?? [];
+        _isLoading = false;
+      });
+    } else {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   Widget _buildPlayerOverview(BuildContext context) {
@@ -91,9 +355,10 @@ class _StatsPageState extends State<StatsPage> {
     final winRate = _playerData!['winRate'] ?? 0;
     final kda = _playerData!['kda'] ?? 0.0;
     final rank = _playerData!['rank'] ?? 0;
-    
-    final rankLabel = _getRankLabel(rank);
-    
+    final avatarUrl = _playerData!['avatarUrl'] ?? '';
+
+    final rankLabel = formatRank(rank);
+
     return Container(
       padding: const EdgeInsets.all(24),
       child: Container(
@@ -108,10 +373,33 @@ class _StatsPageState extends State<StatsPage> {
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
-                    gradient: AppTheme.primaryGradient,
                     borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3), width: 2),
                   ),
-                  child: const Icon(Icons.person, size: 40, color: Colors.white),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: avatarUrl.isNotEmpty
+                        ? Image.network(
+                            avatarUrl,
+                            width: 80,
+                            height: 80,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              decoration: BoxDecoration(
+                                gradient: AppTheme.primaryGradient,
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: const Icon(Icons.person, size: 40, color: Colors.white),
+                            ),
+                          )
+                        : Container(
+                            decoration: BoxDecoration(
+                              gradient: AppTheme.primaryGradient,
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: const Icon(Icons.person, size: 40, color: Colors.white),
+                          ),
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -148,18 +436,6 @@ class _StatsPageState extends State<StatsPage> {
       ),
     );
   }
-  
-  String _getRankLabel(int rank) {
-    if (rank <= 10) return 'Grandmaster';
-    if (rank <= 50) return 'Master';
-    if (rank <= 100) return 'Grand Champion';
-    if (rank <= 500) return 'Champion';
-    if (rank <= 1000) return 'Diamond';
-    if (rank <= 2000) return 'Platinum';
-    if (rank <= 5000) return 'Gold';
-    if (rank <= 10000) return 'Silver';
-    return 'Bronze';
-  }
 
   Widget _buildStatItem(String label, String value, Color color) {
     return Column(
@@ -189,6 +465,9 @@ class _StatsPageState extends State<StatsPage> {
             const SizedBox(height: 16),
             Row(
               children: topHeroes.map((hero) {
+                final heroId = hero['heroId'] ?? 0;
+                final heroData = _heroMap[heroId];
+                final iconUrl = heroData?['iconUrl'] ?? '';
                 return Expanded(
                   child: Padding(
                     padding: const EdgeInsets.only(right: 8.0),
@@ -198,21 +477,43 @@ class _StatsPageState extends State<StatsPage> {
                       child: Column(
                         children: [
                           Container(
-                            width: 48,
-                            height: 48,
+                            width: 56,
+                            height: 56,
                             decoration: BoxDecoration(
-                              gradient: AppTheme.primaryGradient,
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Icon(Icons.person, color: Colors.white),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: iconUrl.isNotEmpty
+                                  ? Image.network(
+                                      iconUrl,
+                                      width: 56,
+                                      height: 56,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => Container(
+                                        decoration: BoxDecoration(
+                                          gradient: AppTheme.primaryGradient,
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: const Icon(Icons.person, color: Colors.white),
+                                      ),
+                                    )
+                                  : Container(
+                                      decoration: BoxDecoration(
+                                        gradient: AppTheme.primaryGradient,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: const Icon(Icons.person, color: Colors.white),
+                                    ),
+                            ),
                           ),
                           const SizedBox(height: 8),
-                          Text(hero['heroName'] ?? 'Unknown', 
+                          Text(hero['heroName'] ?? 'Unknown',
                               style: Theme.of(context).textTheme.titleSmall,
                               textAlign: TextAlign.center,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis),
-                          Text('${hero['matches']} matches', 
+                          Text('${hero['matches']} matches',
                               style: Theme.of(context).textTheme.bodySmall),
                         ],
                       ),
@@ -228,6 +529,15 @@ class _StatsPageState extends State<StatsPage> {
   }
 
   Widget _buildRankedStats(BuildContext context) {
+    if (_playerData == null) return const SizedBox.shrink();
+    final wins = _playerData!['wins'] ?? 0;
+    final losses = _playerData!['losses'] ?? 0;
+    final winRate = _playerData!['winRate'] ?? 0;
+    final rank = _playerData!['rank'] ?? 0;
+    final mmr = _playerData!['mmr'] ?? 0;
+    final totalMatches = _playerData!['totalMatches'] ?? 0;
+    final rankLabel = formatRank(rank);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Container(
@@ -240,19 +550,31 @@ class _StatsPageState extends State<StatsPage> {
             const SizedBox(height: 16),
             Row(
               children: [
-                Expanded(child: _buildRankCard('Current Rank', 'Gold III', '3200 MMR')),
+                Expanded(
+                  child: _buildRankCard(
+                    'Current Rank',
+                    rankLabel,
+                    '$mmr MMR',
+                  ),
+                ),
                 const SizedBox(width: 12),
-                Expanded(child: _buildRankCard('Peak Rank', 'Platinum I', '3450 MMR')),
+                Expanded(
+                  child: _buildRankCard(
+                    'Matches',
+                    '$wins W / $losses L',
+                    '$totalMatches total',
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 12),
             Row(
               children: [
-                Expanded(child: _buildMiniStat('Wins', '665', Icons.check_circle, AppTheme.successColor)),
+                Expanded(child: _buildMiniStat('Wins', '$wins', Icons.check_circle, AppTheme.successColor)),
                 const SizedBox(width: 12),
-                Expanded(child: _buildMiniStat('Losses', '569', Icons.cancel, AppTheme.errorColor)),
+                Expanded(child: _buildMiniStat('Losses', '$losses', Icons.cancel, AppTheme.errorColor)),
                 const SizedBox(width: 12),
-                Expanded(child: _buildMiniStat('Win Rate', '53.9%', Icons.trending_up, AppTheme.primaryColor)),
+                Expanded(child: _buildMiniStat('Win Rate', '${winRate.toStringAsFixed(1)}%', Icons.trending_up, AppTheme.primaryColor)),
               ],
             ),
           ],
@@ -293,6 +615,8 @@ class _StatsPageState extends State<StatsPage> {
   }
 
   Widget _buildRecentMatches(BuildContext context) {
+    if (_recentMatches.isEmpty) return const SizedBox.shrink();
+
     return Container(
       padding: const EdgeInsets.all(24),
       child: Container(
@@ -303,87 +627,161 @@ class _StatsPageState extends State<StatsPage> {
           children: [
             Text('RECENT MATCHES', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 16),
-            ...List.generate(5, (index) => Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.all(12),
-              decoration: AppTheme.glassDecorationSmall,
-              child: Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: index % 2 == 0 ? AppTheme.successColor.withValues(alpha: 0.2) : AppTheme.errorColor.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(8),
+            ..._recentMatches.take(10).map((match) {
+              final heroId = asInt(match['hero_id']);
+              final heroData = _heroMap[heroId];
+              final heroName = heroData?['name'] ?? 'Hero #$heroId';
+              final heroIcon = heroData?['iconUrl'] ?? '';
+              final kills = asInt(match['player_kills']);
+              final deaths = asInt(match['player_deaths']);
+              final assists = asInt(match['player_assists']);
+              final won = asInt(match['match_result']) == asInt(match['player_team']);
+              final durationS = asInt(match['match_duration_s']);
+              final durationMin = durationS ~/ 60;
+              final startTime = match['start_time'];
+              final DateTime? matchTime = (startTime != null && startTime is num && startTime > 0)
+                  ? DateTime.fromMillisecondsSinceEpoch(startTime.toInt() * 1000)
+                  : null;
+              final timeAgo = matchTime != null ? _formatTimeAgo(matchTime) : '';
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: AppTheme.glassDecorationSmall,
+                child: Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: heroIcon.isNotEmpty
+                            ? Image.network(
+                                heroIcon,
+                                width: 40,
+                                height: 40,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
+                                  decoration: BoxDecoration(
+                                    color: won
+                                        ? AppTheme.successColor.withValues(alpha: 0.2)
+                                        : AppTheme.errorColor.withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(
+                                    won ? Icons.check : Icons.close,
+                                    color: won ? AppTheme.successColor : AppTheme.errorColor,
+                                  ),
+                                ),
+                              )
+                            : Container(
+                                decoration: BoxDecoration(
+                                  color: won
+                                      ? AppTheme.successColor.withValues(alpha: 0.2)
+                                      : AppTheme.errorColor.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  won ? Icons.check : Icons.close,
+                                  color: won ? AppTheme.successColor : AppTheme.errorColor,
+                                ),
+                              ),
+                      ),
                     ),
-                    child: Icon(
-                      index % 2 == 0 ? Icons.check : Icons.close,
-                      color: index % 2 == 0 ? AppTheme.successColor : AppTheme.errorColor,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                won ? Icons.check_circle : Icons.cancel,
+                                size: 14,
+                                color: won ? AppTheme.successColor : AppTheme.errorColor,
+                              ),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(heroName,
+                                    style: Theme.of(context).textTheme.titleSmall,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis),
+                              ),
+                            ],
+                          ),
+                          Text(
+                            '$durationMin min${timeAgo.isNotEmpty ? ' \u00b7 $timeAgo' : ''}',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text('Hero Name', style: Theme.of(context).textTheme.titleSmall),
-                        Text('25 min ago', style: Theme.of(context).textTheme.bodySmall),
+                        Text('$kills/$deaths/$assists', style: Theme.of(context).textTheme.titleSmall),
+                        Text('K/D/A', style: Theme.of(context).textTheme.bodySmall),
                       ],
                     ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text('12/4/8', style: Theme.of(context).textTheme.titleSmall),
-                      Text('K/D/A', style: Theme.of(context).textTheme.bodySmall),
-                    ],
-                  ),
-                ],
-              ),
-            )),
+                  ],
+                ),
+              );
+            }),
           ],
         ),
       ),
     );
   }
 
+  String _formatTimeAgo(DateTime matchTime) {
+    final diff = DateTime.now().difference(matchTime);
+    if (diff.isNegative) return 'just now';
+    if (diff.inMinutes < 1) return 'just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
+  }
+
   void _searchPlayer() async {
     final query = _searchController.text.trim();
     if (query.isEmpty) return;
-    
+
+    _focusNode.unfocus();
     setState(() {
       _isLoading = true;
       _playerData = null;
+      _recentMatches = [];
+      _searchResults = [];
+      _showingResults = false;
+      _suggestions = [];
     });
 
-    // Try to find by account ID if numeric, otherwise search by name
     final accountId = int.tryParse(query);
-    Map<String, dynamic>? data;
-    
     if (accountId != null) {
-      data = await PauselockClient.getPlayerStats(accountId);
-    } else {
-      // Search by name
-      final results = await PauselockClient.searchPlayers(query);
-      if (results != null && results.isNotEmpty) {
-        // Use the first match's accountId to get full stats
-        final firstMatch = results.first;
-        final id = firstMatch['accountId'] as int?;
-        if (id != null) {
-          data = await PauselockClient.getPlayerStats(id);
-        }
-      }
+      _loadPlayer(accountId);
+      return;
     }
 
-    if (data != null) {
+    final results = await PauselockClient.searchPlayers(query);
+    if (results != null && results.isNotEmpty) {
+      if (results.length == 1) {
+        final id = results.first['accountId'] as int?;
+        if (id != null) {
+          _loadPlayer(id);
+          return;
+        }
+      }
       setState(() {
-        _playerData = data;
+        _searchResults = results;
+        _showingResults = true;
         _isLoading = false;
       });
     } else {
       setState(() {
         _isLoading = false;
-        // Could show a "not found" state here
       });
     }
   }
