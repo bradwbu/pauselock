@@ -317,6 +317,10 @@ class UserAccount {
   String username;
   String passwordHash;
   String role;
+  String firstName;
+  String lastName;
+  int? steamAccountId;
+  String? avatarUrl;
   DateTime createdAt;
   DateTime lastLogin;
   bool isActive;
@@ -327,6 +331,10 @@ class UserAccount {
     required this.username,
     required this.passwordHash,
     this.role = 'user',
+    this.firstName = '',
+    this.lastName = '',
+    this.steamAccountId,
+    this.avatarUrl,
     DateTime? createdAt,
     DateTime? lastLogin,
     this.isActive = true,
@@ -337,7 +345,11 @@ class UserAccount {
         'id': id,
         'email': email,
         'username': username,
+        'firstName': firstName,
+        'lastName': lastName,
         'role': role,
+        'steamAccountId': steamAccountId,
+        'avatarUrl': avatarUrl,
         'createdAt': createdAt.toIso8601String(),
         'lastLogin': lastLogin.toIso8601String(),
         'isActive': isActive,
@@ -347,7 +359,11 @@ class UserAccount {
         'id': id,
         'email': email,
         'username': username,
+        'firstName': firstName,
+        'lastName': lastName,
         'role': role,
+        'steamAccountId': steamAccountId,
+        'avatarUrl': avatarUrl,
         'createdAt': createdAt.toIso8601String(),
         'lastLogin': lastLogin.toIso8601String(),
         'isActive': isActive,

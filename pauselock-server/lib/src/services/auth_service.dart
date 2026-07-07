@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:pauselock_server/src/generated/protocol.dart';
+import 'package:pauselock_server/src/services/deadlock_api_service.dart';
 
 const _tierOverridesFile = '/opt/pauselock/data/tier_overrides.json';
 const _usersFile = '/opt/pauselock/data/users.json';
@@ -61,7 +62,7 @@ class AuthService {
   }
 
   UserAccount? _createUser(String email, String username, String passwordHash,
-      {String role = 'user'}) {
+      {String role = 'user', String firstName = '', String lastName = ''}) {
     final exists = _users.any((u) => u.email == email || u.username == username);
     if (exists) return null;
     final user = UserAccount(
@@ -70,13 +71,16 @@ class AuthService {
       username: username,
       passwordHash: passwordHash,
       role: role,
+      firstName: firstName,
+      lastName: lastName,
     );
     _users.add(user);
     _saveUsers();
     return user;
   }
 
-  Map<String, dynamic> register(String email, String username, String password) {
+  Map<String, dynamic> register(String email, String username, String password,
+      {String firstName = '', String lastName = ''}) {
     if (email.trim().isEmpty || username.trim().isEmpty || password.isEmpty) {
       return {'error': 'All fields are required'};
     }
@@ -86,7 +90,8 @@ class AuthService {
     if (!email.contains('@')) {
       return {'error': 'Invalid email address'};
     }
-    final user = _createUser(email, username, _hashPassword(password));
+    final user = _createUser(email, username, _hashPassword(password),
+        firstName: firstName, lastName: lastName);
     if (user == null) {
       return {'error': 'Email or username already exists'};
     }
@@ -192,10 +197,23 @@ class AuthService {
     return user.toSafeJson();
   }
 
-  Map<String, dynamic> updateProfile(
-      UserAccount user, {String? username, String? email}) {
-    if (username != null) user.username = username;
-    if (email != null) user.email = email;
+  Map<String, dynamic> updateProfile(UserAccount user,
+      {String? username, String? email, String? firstName, String? lastName}) {
+    if (username != null) {
+      final nameExists =
+          _users.any((u) => u.username == username && u.id != user.id);
+      if (nameExists) return {'error': 'Username already taken'};
+      user.username = username;
+    }
+    if (email != null) {
+      final emailExists =
+          _users.any((u) => u.email == email && u.id != user.id);
+      if (emailExists) return {'error': 'Email already in use'};
+      user.email = email;
+    }
+    if (firstName != null) user.firstName = firstName;
+    if (lastName != null) user.lastName = lastName;
+    _saveUsers();
     return user.toSafeJson();
   }
 
@@ -208,7 +226,48 @@ class AuthService {
       return {'error': 'New password must be at least 6 characters'};
     }
     user.passwordHash = _hashPassword(newPassword);
+    _saveUsers();
     return {'success': true, 'message': 'Password updated'};
+  }
+
+  Map<String, dynamic> linkSteamAccount(UserAccount user, int steamAccountId) {
+    final alreadyLinked =
+        _users.any((u) => u.steamAccountId == steamAccountId && u.id != user.id);
+    if (alreadyLinked) {
+      return {'error': 'This Steam account is already linked to another user'};
+    }
+    user.steamAccountId = steamAccountId;
+    _saveUsers();
+    return {'success': true, 'steamAccountId': steamAccountId};
+  }
+
+  Map<String, dynamic> unlinkSteamAccount(UserAccount user) {
+    user.steamAccountId = null;
+    _saveUsers();
+    return {'success': true};
+  }
+
+  Map<String, dynamic>? getPublicProfile(int userId) {
+    final user = getUserById(userId);
+    if (user == null || user.id == 0) return null;
+    return {
+      'id': user.id,
+      'username': user.username,
+      'firstName': user.firstName,
+      'lastName': user.lastName,
+      'steamAccountId': user.steamAccountId,
+      'avatarUrl': user.avatarUrl,
+      'role': user.role,
+      'createdAt': user.createdAt.toIso8601String(),
+    };
+  }
+
+  bool updateAvatarUrl(int userId, String? avatarUrl) {
+    final user = getUserById(userId);
+    if (user == null || user.id == 0) return false;
+    user.avatarUrl = avatarUrl;
+    _saveUsers();
+    return true;
   }
 
   HeroTierOverride? getTierOverride(int heroId) => _tierOverrides[heroId];
@@ -303,6 +362,10 @@ class AuthService {
             username: u['username'] ?? '',
             passwordHash: u['passwordHash'] ?? '',
             role: u['role'] ?? 'user',
+            firstName: u['firstName'] ?? '',
+            lastName: u['lastName'] ?? '',
+            steamAccountId: u['steamAccountId'],
+            avatarUrl: u['avatarUrl'],
           );
           user.isActive = u['isActive'] ?? true;
           user.lastLogin = u['lastLogin'] != null
@@ -328,6 +391,10 @@ class AuthService {
         'username': u.username,
         'passwordHash': u.passwordHash,
         'role': u.role,
+        'firstName': u.firstName,
+        'lastName': u.lastName,
+        'steamAccountId': u.steamAccountId,
+        'avatarUrl': u.avatarUrl,
         'isActive': u.isActive,
         'lastLogin': u.lastLogin.toIso8601String(),
       }).toList();

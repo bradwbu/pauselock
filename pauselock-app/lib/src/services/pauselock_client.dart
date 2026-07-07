@@ -135,6 +135,15 @@ class PauselockClient {
     return result as List<dynamic>?;
   }
 
+  static Future<List<dynamic>?> getPlayerMatches(int accountId,
+      {int limit = 20}) async {
+    final result = await _getJson('/player/matches', {
+      'accountId': '$accountId',
+      'limit': '$limit',
+    });
+    return result as List<dynamic>?;
+  }
+
   static Future<Map<String, dynamic>?> getGlobalStats() async {
     final result = await _getJson('/stats/global');
     return result as Map<String, dynamic>?;

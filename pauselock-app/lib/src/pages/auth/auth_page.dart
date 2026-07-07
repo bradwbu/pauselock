@@ -18,6 +18,8 @@ class _AuthPageState extends State<AuthPage> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
 
   @override
   void initState() {
@@ -35,6 +37,8 @@ class _AuthPageState extends State<AuthPage> {
     _usernameController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     super.dispose();
   }
 
@@ -63,6 +67,8 @@ class _AuthPageState extends State<AuthPage> {
           _emailController.text.trim(),
           _usernameController.text.trim(),
           _passwordController.text,
+          firstName: _firstNameController.text.trim(),
+          lastName: _lastNameController.text.trim(),
         );
       }
 
@@ -135,6 +141,20 @@ class _AuthPageState extends State<AuthPage> {
                     _buildTextField(
                         _emailController, 'Email', Icons.email, false),
                     if (!_isLogin) ...[
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildTextField(_firstNameController,
+                                'First Name', Icons.person_outline, false),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildTextField(_lastNameController,
+                                'Last Name', Icons.person_outline, false),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 12),
                       _buildTextField(
                           _usernameController, 'Username', Icons.person, false),

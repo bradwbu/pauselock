@@ -18,11 +18,14 @@ class AuthService {
   }
 
   static Future<Map<String, dynamic>> register(
-      String email, String username, String password) async {
+      String email, String username, String password,
+      {String firstName = '', String lastName = ''}) async {
     final result = await _postJson('/auth/register', {
       'email': email,
       'username': username,
       'password': password,
+      'firstName': firstName,
+      'lastName': lastName,
     });
     if (result is Map && result['token'] != null) {
       _token = result['token']['token'];
@@ -71,11 +74,18 @@ class AuthService {
   }
 
   static Future<Map<String, dynamic>> updateProfile(
-      {String? username, String? email}) async {
+      {String? username, String? email, String? firstName, String? lastName}) async {
     final body = <String, dynamic>{};
     if (username != null) body['username'] = username;
     if (email != null) body['email'] = email;
-    return await _postJson('/auth/update-profile', body);
+    if (firstName != null) body['firstName'] = firstName;
+    if (lastName != null) body['lastName'] = lastName;
+    final result = await _postJson('/auth/update-profile', body);
+    if (result is Map && result['error'] == null) {
+      _currentUser = Map<String, dynamic>.from(result);
+      LocalStorageService.saveAuthUser(_currentUser!);
+    }
+    return result is Map ? Map<String, dynamic>.from(result) : {'error': 'Update failed'};
   }
 
   static Future<Map<String, dynamic>> changePassword(
@@ -84,6 +94,34 @@ class AuthService {
       'oldPassword': oldPassword,
       'newPassword': newPassword,
     });
+  }
+
+  static Future<Map<String, dynamic>> linkSteam(int steamAccountId) async {
+    final result = await _postJson('/auth/link-steam', {
+      'steamAccountId': steamAccountId,
+    });
+    if (result is Map && result['success'] == true) {
+      _currentUser?['steamAccountId'] = steamAccountId;
+      LocalStorageService.saveAuthUser(_currentUser!);
+    }
+    return result is Map ? Map<String, dynamic>.from(result) : {'error': 'Link failed'};
+  }
+
+  static Future<Map<String, dynamic>> unlinkSteam() async {
+    final result = await _postJson('/auth/unlink-steam', {});
+    if (result is Map && result['success'] == true) {
+      _currentUser?['steamAccountId'] = null;
+      LocalStorageService.saveAuthUser(_currentUser!);
+    }
+    return result is Map ? Map<String, dynamic>.from(result) : {'error': 'Unlink failed'};
+  }
+
+  static Future<Map<String, dynamic>?> getPublicProfile(int userId) async {
+    final result = await _getJson('/user/profile/$userId');
+    if (result is Map && result['error'] == null) {
+      return Map<String, dynamic>.from(result);
+    }
+    return null;
   }
 
   static Future<List<dynamic>> getUsers() async {

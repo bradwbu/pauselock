@@ -112,6 +112,8 @@ class MainLayout extends StatelessWidget {
           const SizedBox(height: 20),
           const _SectionHeader(title: 'PERSONAL'),
           _NavItem(icon: Icons.person_rounded, label: 'My Profile', route: '/profile', currentPath: GoRouterState.of(context).uri.path),
+          if (isLoggedIn)
+            _NavItem(icon: Icons.settings_rounded, label: 'Account Settings', route: '/account', currentPath: GoRouterState.of(context).uri.path),
           if (isAdmin)
             _NavItem(icon: Icons.admin_panel_settings, label: 'Admin Panel', route: '/admin', currentPath: GoRouterState.of(context).uri.path),
           

@@ -14,6 +14,7 @@ import 'package:pauselock_app/src/pages/stats/ranks_page.dart';
 import 'package:pauselock_app/src/pages/builds/pro_builds_page.dart';
 import 'package:pauselock_app/src/pages/players/player_search_page.dart';
 import 'package:pauselock_app/src/pages/auth/auth_page.dart';
+import 'package:pauselock_app/src/pages/account/account_settings_page.dart';
 import 'package:pauselock_app/src/pages/admin/admin_dashboard_page.dart';
 import 'package:pauselock_app/src/widgets/main_layout.dart';
 import 'package:pauselock_app/src/services/pauselock_client.dart';
@@ -80,6 +81,9 @@ final _router = GoRouter(
           ),
         ),
         GoRoute(path: '/profile', builder: (context, state) => const ProfilePage()),
+        GoRoute(
+            path: '/account',
+            builder: (context, state) => const AccountSettingsPage()),
         GoRoute(
             path: '/leaderboard',
             builder: (context, state) => const LeaderboardPage()),

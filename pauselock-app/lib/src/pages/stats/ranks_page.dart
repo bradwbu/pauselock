@@ -6,20 +6,22 @@ class RanksPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Simulated ranks distribution similar to tracklock.gg
     final ranks = [
-      {'name': 'Obscurus', 'color': Colors.grey, 'mmr': '0 - 1000', 'percentile': 'Bottom 20%'},
-      {'name': 'Initiate', 'color': Colors.green, 'mmr': '1000 - 1400', 'percentile': 'Top 80%'},
-      {'name': 'Seeker', 'color': Colors.blue, 'mmr': '1400 - 1700', 'percentile': 'Top 50%'},
-      {'name': 'Alchemist', 'color': Colors.purple, 'mmr': '1700 - 2000', 'percentile': 'Top 25%'},
-      {'name': 'Archon', 'color': AppTheme.primaryColor, 'mmr': '2000 - 2400', 'percentile': 'Top 10%'},
-      {'name': 'Oracle', 'color': Colors.redAccent, 'mmr': '2400 - 2800', 'percentile': 'Top 3%'},
-      {'name': 'Phantom', 'color': AppTheme.accentColor, 'mmr': '2800+', 'percentile': 'Top 0.5%'},
+      {'name': 'Initiate', 'tier': 2, 'color': Colors.green, 'description': 'Just starting out'},
+      {'name': 'Seeker', 'tier': 3, 'color': Colors.blue, 'description': 'Learning the basics'},
+      {'name': 'Alchemist', 'tier': 4, 'color': Colors.purple, 'description': 'Mixing things up'},
+      {'name': 'Ritualist', 'tier': 5, 'color': Colors.teal, 'description': 'Finding their groove'},
+      {'name': 'Emissary', 'tier': 6, 'color': Colors.orange, 'description': 'Reliable performers'},
+      {'name': 'Archon', 'tier': 7, 'color': AppTheme.primaryColor, 'description': 'Strategic thinkers'},
+      {'name': 'Oracle', 'tier': 8, 'color': Colors.redAccent, 'description': 'See the future'},
+      {'name': 'Phantom', 'tier': 9, 'color': AppTheme.accentColor, 'description': 'Elusive and deadly'},
+      {'name': 'Ascendant', 'tier': 10, 'color': Colors.amber, 'description': 'Rising above'},
+      {'name': 'Eternus', 'tier': 11, 'color': Colors.red, 'description': 'The elite'},
     ];
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('MMR Rank Distribution'),
+        title: const Text('Rank Tiers'),
       ),
       body: Column(
         children: [
@@ -34,7 +36,7 @@ class RanksPage extends StatelessWidget {
                 SizedBox(width: 16),
                 Expanded(
                   child: Text(
-                    'Deadlock uses a hidden MMR system. These brackets represent the estimated skill tiers based on community data tracking.',
+                    'Deadlock ranks are earned through consistent performance. Each rank has sub-tiers that you progress through.',
                     style: TextStyle(color: Colors.white70, height: 1.5),
                   ),
                 ),
@@ -71,7 +73,16 @@ class RanksPage extends StatelessWidget {
                               ),
                             ],
                           ),
-                          child: Icon(Icons.military_tech, color: rank['color'] as Color, size: 32),
+                          child: Center(
+                            child: Text(
+                              '${rank['tier']}',
+                              style: TextStyle(
+                                color: rank['color'] as Color,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
                         ),
                         const SizedBox(width: 24),
                         Expanded(
@@ -86,16 +97,10 @@ class RanksPage extends StatelessWidget {
                                   letterSpacing: 1.2,
                                 ),
                               ),
-                              const SizedBox(height: 6),
-                              Row(
-                                children: [
-                                  const Icon(Icons.trending_up, size: 14, color: Colors.white54),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    'Est. MMR: ${rank['mmr']}',
-                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white70),
-                                  ),
-                                ],
+                              const SizedBox(height: 4),
+                              Text(
+                                rank['description'] as String,
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white70),
                               ),
                             ],
                           ),
@@ -107,7 +112,7 @@ class RanksPage extends StatelessWidget {
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
-                            rank['percentile'] as String,
+                            'Tier ${rank['tier']}',
                             style: TextStyle(
                               color: rank['color'] as Color,
                               fontWeight: FontWeight.bold,

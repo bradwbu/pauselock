@@ -59,6 +59,8 @@ Future<void> _handleRequest(HttpRequest request) async {
           parsedBody['email'] ?? '',
           parsedBody['username'] ?? '',
           parsedBody['password'] ?? '',
+          firstName: parsedBody['firstName'] ?? '',
+          lastName: parsedBody['lastName'] ?? '',
         );
         break;
 
@@ -84,6 +86,15 @@ Future<void> _handleRequest(HttpRequest request) async {
           break;
         }
         result = _auth.getProfile(currentUser);
+        if (result is Map && currentUser.steamAccountId != null) {
+          try {
+            final steamData = await _deadlockApi
+                .getPlayerStats(currentUser.steamAccountId!);
+            if (steamData != null) {
+              result['steamPlayerData'] = steamData;
+            }
+          } catch (_) {}
+        }
         break;
 
       case '/auth/update-profile':
@@ -96,7 +107,39 @@ Future<void> _handleRequest(HttpRequest request) async {
           break;
         }
         result = _auth.updateProfile(currentUser,
-            username: parsedBody['username'], email: parsedBody['email']);
+            username: parsedBody['username'],
+            email: parsedBody['email'],
+            firstName: parsedBody['firstName'],
+            lastName: parsedBody['lastName']);
+        break;
+
+      case '/auth/link-steam':
+        if (currentUser == null) {
+          result = {'error': 'Not authenticated'};
+          break;
+        }
+        if (request.method != 'POST') {
+          result = {'error': 'POST required'};
+          break;
+        }
+        final steamId = parsedBody['steamAccountId'];
+        if (steamId == null || steamId == 0) {
+          result = {'error': 'Valid Steam Account ID required'};
+          break;
+        }
+        result = _auth.linkSteamAccount(currentUser, steamId);
+        break;
+
+      case '/auth/unlink-steam':
+        if (currentUser == null) {
+          result = {'error': 'Not authenticated'};
+          break;
+        }
+        if (request.method != 'POST') {
+          result = {'error': 'POST required'};
+          break;
+        }
+        result = _auth.unlinkSteamAccount(currentUser);
         break;
 
       case '/auth/change-password':
@@ -364,6 +407,25 @@ Future<void> _handleRequest(HttpRequest request) async {
         }
         _auth.deleteAnnouncement(parsedBody['id'] ?? 0);
         result = {'success': true};
+        break;
+
+      case String p when p.startsWith('/user/profile/'):
+        final userId = int.tryParse(p.split('/').last) ?? 0;
+        result = _auth.getPublicProfile(userId);
+        if (result == null) {
+          result = {'error': 'User not found'};
+          break;
+        }
+        final profile = result as Map<String, dynamic>;
+        if (profile['steamAccountId'] != null) {
+          try {
+            final steamData = await _deadlockApi
+                .getPlayerStats(profile['steamAccountId'] as int);
+            if (steamData != null) {
+              profile['steamPlayerData'] = steamData;
+            }
+          } catch (_) {}
+        }
         break;
 
       default:
