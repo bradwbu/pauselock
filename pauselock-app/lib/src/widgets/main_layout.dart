@@ -106,6 +106,7 @@ class MainLayout extends StatelessWidget {
           const SizedBox(height: 20),
           const _SectionHeader(title: 'GAME DATA'),
           _NavItem(icon: Icons.people_alt_rounded, label: 'Heroes', route: '/heroes', currentPath: GoRouterState.of(context).uri.path),
+          _NavItem(icon: Icons.auto_stories_rounded, label: 'Lore', route: '/lore', currentPath: GoRouterState.of(context).uri.path),
           _NavItem(icon: Icons.build_circle_rounded, label: 'Builds', route: '/builds', currentPath: GoRouterState.of(context).uri.path),
           _NavItem(icon: Icons.emoji_events_rounded, label: 'Pro Builds', route: '/probuilds', currentPath: GoRouterState.of(context).uri.path),
           

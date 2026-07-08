@@ -665,6 +665,9 @@ class DeadlockApiService {
           description['role'] ??
           description['lore'] ??
           '',
+      'lore': description['lore'] ?? '',
+      'playstyle': description['playstyle'] ?? '',
+      'roleDescription': description['role'] ?? '',
       'iconUrl':
           images['icon_image_small_webp'] ?? images['icon_image_small'] ?? '',
       'bannerPortraitUrl':

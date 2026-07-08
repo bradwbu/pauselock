@@ -158,6 +158,7 @@ class _HomePageState extends State<HomePage> {
               _buildNavCard(context, 'Stats', Icons.bar_chart, '/stats'),
               _buildNavCard(context, 'Builds', Icons.build, '/builds'),
               _buildNavCard(context, 'Heroes', Icons.shield, '/heroes'),
+              _buildNavCard(context, 'Lore', Icons.auto_stories, '/lore'),
               _buildNavCard(
                   context, 'Leaderboard', Icons.leaderboard, '/leaderboard'),
             ],

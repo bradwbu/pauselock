@@ -8,6 +8,8 @@ import 'package:pauselock_app/src/pages/builds/build_detail_page.dart';
 import 'package:pauselock_app/src/pages/builds/builds_page.dart';
 import 'package:pauselock_app/src/pages/heroes/heroes_page.dart';
 import 'package:pauselock_app/src/pages/heroes/hero_detail_page.dart';
+import 'package:pauselock_app/src/pages/lore/lore_page.dart';
+import 'package:pauselock_app/src/pages/lore/hero_lore_page.dart';
 import 'package:pauselock_app/src/pages/profile/profile_page.dart';
 import 'package:pauselock_app/src/pages/stats/leaderboard_page.dart';
 import 'package:pauselock_app/src/pages/stats/ranks_page.dart';
@@ -77,6 +79,13 @@ final _router = GoRouter(
         GoRoute(
           path: '/heroes/:heroId',
           builder: (context, state) => HeroDetailPage(
+            heroId: int.tryParse(state.pathParameters['heroId'] ?? '') ?? 0,
+          ),
+        ),
+        GoRoute(path: '/lore', builder: (context, state) => const LorePage()),
+        GoRoute(
+          path: '/lore/:heroId',
+          builder: (context, state) => HeroLorePage(
             heroId: int.tryParse(state.pathParameters['heroId'] ?? '') ?? 0,
           ),
         ),
