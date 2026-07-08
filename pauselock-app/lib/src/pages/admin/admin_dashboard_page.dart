@@ -23,6 +23,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   bool _isSaving = false;
   String? _error;
   List<dynamic> _announcements = [];
+  Map<int, Map<String, dynamic>> _heroVoteStats = {};
 
   @override
   void initState() {
@@ -50,6 +51,16 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       final users = await AuthService.getUsers();
       final tierOverrides = await AuthService.getTierOverrides();
       final announcements = await AuthService.getAdminAnnouncements();
+      final voteStatsMap = <int, Map<String, dynamic>>{};
+      if (heroes != null) {
+        for (final hero in heroes) {
+          final heroId = hero['id'] ?? 0;
+          if (heroId > 0) {
+            final stats = await AuthService.getHeroVoteStats(heroId);
+            if (stats != null) voteStatsMap[heroId] = stats;
+          }
+        }
+      }
       setState(() {
         _heroes = heroes ?? [];
         _users = users;
@@ -57,6 +68,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         _pendingTiers = {};
         _hasUnsavedChanges = false;
         _announcements = announcements;
+        _heroVoteStats = voteStatsMap;
         _isLoading = false;
       });
     } catch (e) {
@@ -557,6 +569,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     final heroName = hero['name'] ?? 'Unknown';
     final currentTier = _getCurrentTier(hero);
     final isChanged = _pendingTiers.containsKey(heroId);
+    final voteStats = _heroVoteStats[heroId];
+    final totalVotes = voteStats?['totalVotes'] ?? 0;
+    final tierCounts = voteStats?['tierCounts'] as Map<String, dynamic>? ?? {};
+    final blendedTier = voteStats?['blendedTier'] ?? currentTier;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 6),
@@ -594,13 +610,61 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(heroName,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(fontSize: 13)),
-                Text(hero['heroType'] ?? '',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 10)),
+                Row(
+                  children: [
+                    Text(heroName,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(fontSize: 13)),
+                    const SizedBox(width: 6),
+                    if (blendedTier != currentTier)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: _tierChipColor(blendedTier.toString()).withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text('Blended: $blendedTier',
+                            style: TextStyle(fontSize: 9, color: _tierChipColor(blendedTier.toString()),
+                                fontWeight: FontWeight.w600)),
+                      ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    Text(hero['heroType'] ?? '',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 10)),
+                    if (totalVotes > 0) ...[
+                      const SizedBox(width: 8),
+                      Icon(Icons.how_to_vote, size: 10, color: AppTheme.textSecondary),
+                      const SizedBox(width: 2),
+                      Text('$totalVotes vote${totalVotes == 1 ? '' : 's'}',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 10, color: AppTheme.textSecondary)),
+                    ],
+                  ],
+                ),
               ],
             ),
           ),
+          if (totalVotes > 0)
+            Container(
+              margin: const EdgeInsets.only(right: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: tierOptions.map((tier) {
+                  final count = tierCounts[tier] ?? 0;
+                  if (count == 0) return const SizedBox.shrink();
+                  return Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 1),
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: _tierChipColor(tier).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                    child: Text('$tier:$count',
+                        style: TextStyle(fontSize: 8, color: _tierChipColor(tier), fontWeight: FontWeight.w600)),
+                  );
+                }).toList(),
+              ),
+            ),
           ...tierOptions.map((tier) {
             final isSelected = currentTier == tier;
             return Padding(

@@ -16,11 +16,25 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
   String _selectedRegion = 'Global';
   List<dynamic> _entries = [];
   bool _isLoading = true;
+  Map<int, Map<String, dynamic>> _heroMap = {};
 
   @override
   void initState() {
     super.initState();
+    _loadHeroes();
     _loadLeaderboard();
+  }
+
+  Future<void> _loadHeroes() async {
+    final heroes = await PauselockClient.getAllHeroes();
+    if (heroes != null && mounted) {
+      final map = <int, Map<String, dynamic>>{};
+      for (final h in heroes) {
+        final id = h['id'] ?? h['heroId'];
+        if (id != null) map[id as int] = Map<String, dynamic>.from(h);
+      }
+      setState(() => _heroMap = map);
+    }
   }
 
   Future<void> _loadLeaderboard() async {
@@ -95,6 +109,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                                 entry['mmr'] ?? 0,
                                 entry['region'] ?? 'Unknown',
                                 entry['avatarUrl'] ?? '',
+                                entry['heroId'] ?? 0,
                               ))
                           .toList(),
                     ),
@@ -170,7 +185,8 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                   players[1]['playerName'] ?? 'Unknown',
                   (players[1]['mmr'] ?? 0).toString(),
                   AppTheme.secondaryColor,
-                  avatarUrl: players[1]['avatarUrl'] ?? '')),
+                  avatarUrl: players[1]['avatarUrl'] ?? '',
+                  heroId: players[1]['heroId'] ?? 0)),
           const SizedBox(width: 8),
           Expanded(
             child: Container(
@@ -182,7 +198,8 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                   (players[0]['mmr'] ?? 0).toString(),
                   AppTheme.primaryColor,
                   isFirst: true,
-                  avatarUrl: players[0]['avatarUrl'] ?? ''),
+                  avatarUrl: players[0]['avatarUrl'] ?? '',
+                  heroId: players[0]['heroId'] ?? 0),
             ),
           ),
           const SizedBox(width: 8),
@@ -193,7 +210,8 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                   players[2]['playerName'] ?? 'Unknown',
                   (players[2]['mmr'] ?? 0).toString(),
                   AppTheme.accentColor,
-                  avatarUrl: players[2]['avatarUrl'] ?? '')),
+                  avatarUrl: players[2]['avatarUrl'] ?? '',
+                  heroId: players[2]['heroId'] ?? 0)),
         ],
       ),
     );
@@ -201,8 +219,10 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
 
   Widget _buildTopPlayerCard(
       BuildContext context, String rank, String name, String mmr, Color color,
-      {bool isFirst = false, String avatarUrl = ''}) {
+      {bool isFirst = false, String avatarUrl = '', int heroId = 0}) {
     final size = isFirst ? 50.0 : 40.0;
+    final hero = _heroMap[heroId];
+    final heroIconUrl = hero?['iconUrl'] ?? '';
     return Container(
       decoration: AppTheme.glassDecoration,
       padding: EdgeInsets.all(isFirst ? 20 : 16),
@@ -261,6 +281,14 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis),
+          if (heroIconUrl.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: Image.network(heroIconUrl, width: 24, height: 24, fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const SizedBox()),
+            ),
+          ],
           Text(formatRank(mmr),
               style: TextStyle(
                   color: color, fontWeight: FontWeight.bold, fontSize: 12)),
@@ -270,7 +298,10 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
   }
 
   Widget _buildLeaderboardRow(
-      BuildContext context, int rank, String name, int mmr, String region, String avatarUrl) {
+      BuildContext context, int rank, String name, int mmr, String region, String avatarUrl, int heroId) {
+    final hero = _heroMap[heroId];
+    final heroIconUrl = hero?['iconUrl'] ?? '';
+    final heroName = hero?['name'] ?? '';
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: AppTheme.glassDecorationSmall,
@@ -311,7 +342,24 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
           ),
         ),
         title: Text(name, style: Theme.of(context).textTheme.titleSmall),
-        subtitle: Text(region, style: Theme.of(context).textTheme.bodySmall),
+        subtitle: Row(
+          children: [
+            Text(region, style: Theme.of(context).textTheme.bodySmall),
+            if (heroIconUrl.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(3),
+                child: Image.network(heroIconUrl, width: 16, height: 16, fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => const SizedBox()),
+              ),
+              if (heroName.isNotEmpty) ...[
+                const SizedBox(width: 4),
+                Text(heroName, style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppTheme.textSecondary, fontSize: 11)),
+              ],
+            ],
+          ],
+        ),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
