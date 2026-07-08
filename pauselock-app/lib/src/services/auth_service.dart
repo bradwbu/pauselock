@@ -208,6 +208,25 @@ class AuthService {
     });
   }
 
+  static Future<Map<String, dynamic>> voteHero(int heroId, String tier) async {
+    return await _postJson('/hero/vote', {
+      'heroId': heroId,
+      'tier': tier,
+    });
+  }
+
+  static Future<Map<String, dynamic>> removeHeroVote(int heroId) async {
+    return await _postJson('/hero/unvote', {
+      'heroId': heroId,
+    });
+  }
+
+  static Future<Map<String, dynamic>?> getHeroVoteStats(int heroId) async {
+    final result = await _getJson('/hero/vote-stats?heroId=$heroId');
+    if (result is Map) return Map<String, dynamic>.from(result);
+    return null;
+  }
+
   static Future<dynamic> _getJson(String path) async {
     try {
       final uri = _buildUri(path);

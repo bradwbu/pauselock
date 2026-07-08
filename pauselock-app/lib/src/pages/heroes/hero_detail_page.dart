@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pauselock_app/src/theme/app_theme.dart';
 import 'package:pauselock_app/src/services/pauselock_client.dart';
+import 'package:pauselock_app/src/services/auth_service.dart';
 import 'package:pauselock_app/src/utils/formatters.dart';
 import 'package:pauselock_app/src/services/local_storage_service.dart';
 import 'package:shimmer/shimmer.dart';
@@ -16,11 +17,15 @@ class HeroDetailPage extends StatefulWidget {
 
 class _HeroDetailPageState extends State<HeroDetailPage> {
   bool _isFavorite = false;
+  String? _userVote;
+  Map<String, dynamic>? _voteStats;
+  bool _isVoting = false;
 
   @override
   void initState() {
     super.initState();
     _checkFavorite();
+    _loadVoteData();
   }
 
   void _checkFavorite() {
@@ -46,6 +51,42 @@ class _HeroDetailPageState extends State<HeroDetailPage> {
         ),
       );
     }
+  }
+
+  Future<void> _loadVoteData() async {
+    final stats = await AuthService.getHeroVoteStats(widget.heroId);
+    if (mounted && stats != null) {
+      setState(() => _voteStats = stats);
+    }
+  }
+
+  Future<void> _vote(String tier) async {
+    if (!AuthService.isLoggedIn) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please sign in to vote')),
+        );
+      }
+      return;
+    }
+    setState(() => _isVoting = true);
+    try {
+      if (_userVote == tier) {
+        await AuthService.removeHeroVote(widget.heroId);
+        setState(() => _userVote = null);
+      } else {
+        await AuthService.voteHero(widget.heroId, tier);
+        setState(() => _userVote = tier);
+      }
+      await _loadVoteData();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to vote')),
+        );
+      }
+    }
+    if (mounted) setState(() => _isVoting = false);
   }
 
   Map<int, Map<String, dynamic>> _itemsCache = {};
@@ -131,6 +172,8 @@ class _HeroDetailPageState extends State<HeroDetailPage> {
                       child: _buildHeroBanner(
                           context, heroName, heroType, tier, complexity,
                           iconUrl, bannerUrl)),
+                  SliverToBoxAdapter(
+                      child: _buildTierVoting(context, tier, heroData['adminTier'])),
                   SliverToBoxAdapter(
                       child: _buildHeroStatsRow(
                           context, winRate, pickRate, banRate, matchesPlayed)),
@@ -320,6 +363,140 @@ class _HeroDetailPageState extends State<HeroDetailPage> {
                 ],
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTierVoting(BuildContext context, String currentTier, String? adminTier) {
+    final tiers = ['S+', 'S', 'A', 'B', 'C'];
+    final tierColors = {
+      'S+': const Color(0xFFFF4466),
+      'S': const Color(0xFFFF9900),
+      'A': const Color(0xFF00D4FF),
+      'B': const Color(0xFF00FF88),
+      'C': const Color(0xFFA0AABF),
+    };
+    final totalVotes = _voteStats?['totalVotes'] ?? 0;
+    final tierCounts = _voteStats?['tierCounts'] as Map<String, dynamic>? ?? {};
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Container(
+        decoration: AppTheme.glassDecoration,
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text('COMMUNITY TIER', style: Theme.of(context).textTheme.titleSmall),
+                const Spacer(),
+                if (adminTier != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text('Admin: $adminTier',
+                        style: const TextStyle(
+                            color: AppTheme.primaryColor,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600)),
+                  ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: _tierColor(currentTier).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text('Final: $currentTier',
+                      style: TextStyle(
+                          color: _tierColor(currentTier),
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text('50% admin + 50% community votes ($totalVotes total)',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 11)),
+            const SizedBox(height: 12),
+            ...tiers.map((tier) {
+              final count = tierCounts[tier] ?? 0;
+              final pct = totalVotes > 0 ? (count / totalVotes) : 0.0;
+              final isSelected = _userVote == tier;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: GestureDetector(
+                  onTap: _isVoting ? null : () => _vote(tier),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? tierColors[tier]!.withValues(alpha: 0.2)
+                          : AppTheme.surfaceColorLight.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isSelected
+                            ? tierColors[tier]!
+                            : Colors.transparent,
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 32,
+                          child: Text(tier,
+                              style: TextStyle(
+                                  color: tierColors[tier],
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13)),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(3),
+                            child: LinearProgressIndicator(
+                              value: pct,
+                              backgroundColor: Colors.white.withValues(alpha: 0.05),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                  tierColors[tier]!.withValues(alpha: 0.7)),
+                              minHeight: 8,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        SizedBox(
+                          width: 45,
+                          child: Text('${(pct * 100).round()}%',
+                              style: const TextStyle(
+                                  color: AppTheme.textSecondary,
+                                  fontSize: 11),
+                              textAlign: TextAlign.right),
+                        ),
+                        const SizedBox(width: 4),
+                        Text('($count)',
+                            style: TextStyle(
+                                color: tierColors[tier]!.withValues(alpha: 0.6),
+                                fontSize: 10)),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+            if (!AuthService.isLoggedIn)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text('Sign in to vote on this hero\'s tier',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppTheme.textSecondary, fontStyle: FontStyle.italic)),
+              ),
           ],
         ),
       ),

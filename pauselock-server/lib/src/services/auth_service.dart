@@ -11,6 +11,7 @@ const _tierOverridesFile = '/opt/pauselock/data/tier_overrides.json';
 const _usersFile = '/opt/pauselock/data/users.json';
 const _tokensFile = '/opt/pauselock/data/tokens.json';
 const _announcementsFile = '/opt/pauselock/data/announcements.json';
+const _heroVotesFile = '/opt/pauselock/data/hero_votes.json';
 
 class AuthService {
   AuthService._();
@@ -20,6 +21,7 @@ class AuthService {
   final Map<String, AuthToken> _tokens = {};
   final Map<int, HeroTierOverride> _tierOverrides = {};
   final List<Map<String, dynamic>> _announcements = [];
+  final Map<int, Map<int, HeroVote>> _heroVotes = {};
   int _nextUserId = 1;
 
   void initialize() {
@@ -27,6 +29,7 @@ class AuthService {
     _loadTokens();
     _loadTierOverrides();
     _loadAnnouncements();
+    _loadHeroVotes();
     if (_users.isEmpty) {
       _seedAdminUser();
       _saveUsers();
@@ -525,6 +528,136 @@ class AuthService {
           .writeAsStringSync(const JsonEncoder.withIndent('  ').convert(_announcements));
     } catch (e) {
       stdout.writeln('Failed to save announcements: $e');
+    }
+  }
+
+  Map<String, dynamic> voteHero(UserAccount user, int heroId, String tier) {
+    if (!['S+', 'S', 'A', 'B', 'C'].contains(tier)) {
+      return {'error': 'Invalid tier. Must be S+, S, A, B, or C'};
+    }
+    final heroVotes = _heroVotes.putIfAbsent(heroId, () => {});
+    heroVotes[user.id] = HeroVote(
+      heroId: heroId,
+      userId: user.id,
+      tier: tier,
+    );
+    _saveHeroVotes();
+    return {'success': true, 'tier': tier};
+  }
+
+  Map<String, dynamic> removeVote(UserAccount user, int heroId) {
+    final heroVotes = _heroVotes[heroId];
+    if (heroVotes != null) {
+      heroVotes.remove(user.id);
+      if (heroVotes.isEmpty) _heroVotes.remove(heroId);
+    }
+    _saveHeroVotes();
+    return {'success': true};
+  }
+
+  Map<String, dynamic>? getUserVote(UserAccount user, int heroId) {
+    final heroVotes = _heroVotes[heroId];
+    if (heroVotes == null) return null;
+    final vote = heroVotes[user.id];
+    return vote?.toJson();
+  }
+
+  Map<String, dynamic> getHeroVoteStats(int heroId) {
+    final heroVotes = _heroVotes[heroId] ?? {};
+    final Map<String, int> tierCounts = {'S+': 0, 'S': 0, 'A': 0, 'B': 0, 'C': 0};
+    for (final vote in heroVotes.values) {
+      tierCounts[vote.tier] = (tierCounts[vote.tier] ?? 0) + 1;
+    }
+    return {
+      'heroId': heroId,
+      'totalVotes': heroVotes.length,
+      'tierCounts': tierCounts,
+    };
+  }
+
+  static const _tierValues = {'S+': 5, 'S': 4, 'A': 3, 'B': 2, 'C': 1};
+  static const _tierLabels = {5: 'S+', 4: 'S', 3: 'A', 2: 'B', 1: 'C'};
+
+  String calculateBlendedTier(int heroId, String adminTier) {
+    final adminValue = _tierValues[adminTier] ?? 3;
+    final heroVotes = _heroVotes[heroId];
+    if (heroVotes == null || heroVotes.isEmpty) {
+      return adminTier;
+    }
+
+    double userSum = 0;
+    int totalVotes = heroVotes.length;
+    for (final vote in heroVotes.values) {
+      userSum += _tierValues[vote.tier] ?? 3;
+    }
+    final userAvg = userSum / totalVotes;
+    final blended = (adminValue * 0.5) + (userAvg * 0.5);
+    final rounded = blended.round().clamp(1, 5);
+    return _tierLabels[rounded] ?? adminTier;
+  }
+
+  Map<int, String> getAllBlendedTiers() {
+    final result = <int, String>{};
+    for (final entry in _tierOverrides.entries) {
+      result[entry.key] = calculateBlendedTier(entry.key, entry.value.tier);
+    }
+    return result;
+  }
+
+  void _loadHeroVotes() {
+    try {
+      final file = File(_heroVotesFile);
+      if (!file.existsSync()) return;
+      final data = jsonDecode(file.readAsStringSync());
+      if (data is Map) {
+        for (final heroEntry in data.entries) {
+          final heroId = int.tryParse(heroEntry.key.toString());
+          if (heroId == null) continue;
+          final votesData = heroEntry.value as Map<String, dynamic>;
+          final heroVotes = <int, HeroVote>{};
+          for (final voteEntry in votesData.entries) {
+            final userId = int.tryParse(voteEntry.key.toString());
+            if (userId == null) continue;
+            final vd = voteEntry.value as Map<String, dynamic>;
+            heroVotes[userId] = HeroVote(
+              heroId: heroId,
+              userId: userId,
+              tier: vd['tier'] ?? 'C',
+              votedAt: vd['votedAt'] != null
+                  ? DateTime.tryParse(vd['votedAt']) ?? DateTime.now()
+                  : DateTime.now(),
+            );
+          }
+          _heroVotes[heroId] = heroVotes;
+        }
+        stdout.writeln('Loaded hero votes from disk');
+      }
+    } catch (e) {
+      stdout.writeln('Failed to load hero votes: $e');
+    }
+  }
+
+  void _saveHeroVotes() {
+    try {
+      final dir = Directory('/opt/pauselock/data');
+      if (!dir.existsSync()) dir.createSync(recursive: true);
+      final data = <String, dynamic>{};
+      for (final heroEntry in _heroVotes.entries) {
+        final votesData = <String, dynamic>{};
+        for (final voteEntry in heroEntry.value.entries) {
+          votesData['${voteEntry.key}'] = {
+            'heroId': voteEntry.value.heroId,
+            'userId': voteEntry.value.userId,
+            'tier': voteEntry.value.tier,
+            'votedAt': voteEntry.value.votedAt.toIso8601String(),
+          };
+        }
+        data['${heroEntry.key}'] = votesData;
+      }
+      File(_heroVotesFile)
+          .writeAsStringSync(const JsonEncoder.withIndent('  ').convert(data));
+    } catch (e) {
+      stdout.writeln('Failed to save hero votes: $e');
     }
   }
 }

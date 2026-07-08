@@ -413,3 +413,24 @@ class HeroTierOverride {
         'setAt': setAt?.toIso8601String(),
       };
 }
+
+class HeroVote {
+  int heroId;
+  int userId;
+  String tier;
+  DateTime votedAt;
+
+  HeroVote({
+    required this.heroId,
+    required this.userId,
+    required this.tier,
+    DateTime? votedAt,
+  }) : votedAt = votedAt ?? DateTime.now();
+
+  Map<String, dynamic> toJson() => {
+        'heroId': heroId,
+        'userId': userId,
+        'tier': tier,
+        'votedAt': votedAt.toIso8601String(),
+      };
+}

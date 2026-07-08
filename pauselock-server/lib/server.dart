@@ -275,8 +275,50 @@ Future<void> _handleRequest(HttpRequest request) async {
             .getHeroById(int.tryParse(p.split('/').last) ?? 0);
         if (result is Map) {
           final override = _auth.getTierOverride(result['id'] ?? 0);
-          if (override != null) result['tier'] = override.tier;
+          if (override != null) {
+            final blendedTier = _auth.calculateBlendedTier(result['id']!, override.tier);
+            result['tier'] = blendedTier;
+            result['adminTier'] = override.tier;
+            result['voteStats'] = _auth.getHeroVoteStats(result['id']!);
+          }
+          if (currentUser != null) {
+            result['userVote'] = _auth.getUserVote(currentUser, result['id'] ?? 0);
+          }
         }
+        break;
+
+      case '/hero/vote':
+        if (currentUser == null) {
+          result = {'error': 'Not authenticated'};
+          break;
+        }
+        if (request.method != 'POST') {
+          result = {'error': 'POST required'};
+          break;
+        }
+        result = _auth.voteHero(
+            currentUser, parsedBody['heroId'] ?? 0, parsedBody['tier'] ?? 'C');
+        break;
+
+      case '/hero/unvote':
+        if (currentUser == null) {
+          result = {'error': 'Not authenticated'};
+          break;
+        }
+        if (request.method != 'POST') {
+          result = {'error': 'POST required'};
+          break;
+        }
+        result = _auth.removeVote(currentUser, parsedBody['heroId'] ?? 0);
+        break;
+
+      case '/hero/vote-stats':
+        result = _auth.getHeroVoteStats(
+            int.tryParse(query['heroId'] ?? '') ?? 0);
+        break;
+
+      case '/hero/tiers':
+        result = _auth.getAllBlendedTiers();
         break;
 
       case '/build/all':
@@ -459,7 +501,10 @@ List<dynamic> _applyTierOverrides(List<dynamic> heroes) {
   for (final hero in heroes) {
     if (hero is Map) {
       final override = _auth.getTierOverride(hero['id'] ?? 0);
-      if (override != null) hero['tier'] = override.tier;
+      if (override != null) {
+        hero['tier'] = _auth.calculateBlendedTier(hero['id']!, override.tier);
+        hero['adminTier'] = override.tier;
+      }
     }
   }
   return heroes;
